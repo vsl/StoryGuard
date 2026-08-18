@@ -1,0 +1,13 @@
+models:
+  embeddings:
+    local_default:
+      family: EmbeddingGemma
+      hf_repository: RESOLVE_AND_PIN
+      revision: PIN_ME
+      dimension: 768
+
+  reranker:
+    local_default:
+      family: bge-reranker-v2-m3
+      hf_repository: BAAI/bge-reranker-v2-m3
+      revision: PIN_ME

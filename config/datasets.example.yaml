@@ -1,0 +1,18 @@
+datasets:
+  public_domain_manuscripts:
+    hf_id: common-pile/project_gutenberg
+    revision: PIN_ME
+    split: train
+    subset_manifest: data/manifests/gutenberg-dev.json
+
+  story_qa:
+    hf_id: meithnav/narrativeqa
+    revision: PIN_ME
+    split: train
+    subset_manifest: data/manifests/narrativeqa-dev.json
+
+  retrieval_eval:
+    hf_id: illuin-conteb/narrative-qa
+    revision: PIN_ME
+    split: test
+    subset_manifest: data/manifests/retrieval-eval.json

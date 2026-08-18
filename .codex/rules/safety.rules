@@ -1,0 +1,29 @@
+# StoryGuard Codex command safety rules.
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "External repository writes require explicit developer approval.",
+    match = ["git push", "git push origin main", "git push --force-with-lease"],
+)
+
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Do not discard developer work.",
+    match = ["git reset --hard", "git reset --hard HEAD~1"],
+)
+
+prefix_rule(
+    pattern = ["git", "clean", "-fd"],
+    decision = "forbidden",
+    justification = "Do not delete untracked developer files without approval.",
+    match = ["git clean -fd", "git clean -fdx"],
+)
+
+prefix_rule(
+    pattern = ["docker", "compose", "down", "-v"],
+    decision = "prompt",
+    justification = "Removing Docker volumes can destroy local PostgreSQL, MinIO, and Elasticsearch development data.",
+    match = ["docker compose down -v"],
+)
