@@ -99,3 +99,23 @@ The developer correctly explained that FastAPI can continue running when Elastic
    - Its event loop and HTTP server still worked, but one dependency required for full service was unavailable.
 5. **What does Compose `depends_on: condition: service_healthy` guarantee?**
    - It gates initial dependent startup; it does not provide runtime failover or keep dependencies healthy afterward.
+
+## Learning review: `service_healthy`
+
+`healthcheck` is a command that Docker runs inside a container. Exit code `0` means the container is `healthy`; a non-zero exit code means the check failed. `condition: service_healthy` in `depends_on` tells Compose to start a dependent service only after the dependency has passed its healthcheck.
+
+In this project:
+
+| Dependent | Waits for a healthy service |
+|---|---|
+| `backend` | `postgres`, `minio`, `elasticsearch` |
+| `frontend` | `backend` |
+| `worker` | `rabbitmq` |
+
+This is an **initial startup gate**, not continuous monitoring or automatic failover. If Elasticsearch becomes unhealthy after `backend` has started, Compose does not automatically stop or restart `backend`. FastAPI's `/health/ready` catches that runtime outage and returns `503`.
+
+One important implementation detail: the backend Compose healthcheck calls `/health/live`, so it verifies that the Uvicorn process responds. The application-level `/health/ready` separately verifies PostgreSQL, MinIO, and Elasticsearch for dependency-backed work. This is why a running backend can be Compose-healthy while readiness is `503`.
+
+### Hands-on exercise
+
+Run `docker compose stop elasticsearch`, then `docker compose ps` and curl both `/health/live` and `/health/ready`. Explain which result is controlled by Docker's healthcheck and which result is controlled by StoryGuard's FastAPI code. Start Elasticsearch again and verify readiness returns `200`.
