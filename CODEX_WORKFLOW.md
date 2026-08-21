@@ -1,46 +1,176 @@
-# How to Use Codex on StoryGuard
+# StoryGuard Codex Workflow
 
-Do NOT ask Codex to “build StoryGuard from the specs.” The project is developed lesson-by-lesson so Codex can write quickly while the developer still learns the system.
+## Normal use
 
-## Preferred course workflow
+You normally type only:
+
 ```text
 $storyguard-course-lesson
-Continue with the next lesson from COURSE.md.
-Do not implement later lessons.
-Before coding, tell me what I need to understand.
-After coding, stop at the developer checkpoint instead of interpreting the result for me.
 ```
 
-## Normal feature slice
+That is enough.
+
+The skill reads:
+
 ```text
-$storyguard-feature
-Implement manuscript upload through FastAPI -> MinIO -> manuscript_versions/job_runs -> Taskiq enqueue. Follow specs. Do not implement parsing yet. Before coding show acceptance criteria and affected components.
+COURSE_PROGRESS.md
+→ COURSE.md
+→ relevant specs
 ```
 
-## AI experiment
+and continues automatically.
+
+Current pack starts at:
+
+```text
+Lesson 1.1 — FastAPI + PostgreSQL
+```
+
+because lessons 0.1 and 0.2 are already marked complete.
+
+---
+
+# Expected Dialogue
+
+Example:
+
+Codex:
+
+```text
+Why should PostgreSQL be the source of truth while Elasticsearch is only a retrieval index?
+```
+
+You answer.
+
+Codex MUST respond in chat:
+
+```text
+✅ What you got right
+...
+
+⚠️ What is missing
+...
+
+🧠 Mental model
+PostgreSQL = authoritative structured state
+Elasticsearch = derived searchable representation
+
+🔗 StoryGuard mapping
+...
+
+🛠 Proposed implementation
+1...
+2...
+3...
+
+Approve this implementation plan?
+```
+
+Then it stops.
+
+Only after:
+
+```text
+yes
+```
+
+may it edit files.
+
+---
+
+# If Codex Writes Files Too Early
+
+Say only:
+
+```text
+Stop. Follow the dialogue-first protocol in AGENTS.md.
+```
+
+You do NOT need to paste the full rules again.
+
+---
+
+# Other Skills
+
+## Experiment
+
 ```text
 $storyguard-ai-experiment
-Compare vector retrieval with the current BM25 baseline on the same retrieval eval set. Do not promote the candidate. Record Recall@10, p50/p95 latency, and failure examples.
 ```
 
-## Security review
-```text
-$storyguard-security-review
-Review Story QA retrieval for prompt injection, cross-project retrieval, old-version leakage, and hallucinated evidence IDs. Add regression tests.
-```
+Use when intentionally changing:
+- retrieval;
+- prompt;
+- model;
+- routing;
+- embeddings;
+- reranker;
+- planner;
+- HyDE;
+- verifier;
+- hallucination behavior.
 
-## Learning review
+You predict first.
+Codex runs after approval.
+You interpret the metrics before promotion.
+
+## Learning / interview review
+
 ```text
 $storyguard-learning-review
-Teach me how our retrieval fallback works using the actual code, tests, metrics, and LangSmith trace. Give 5 English interview questions and one manual debugging task.
 ```
 
-## Manual checkpoints the developer must personally do
-- inspect LangSmith traces;
-- diagnose retrieval failures;
-- interpret retrieval strategy experiments;
-- compare local vs API model routing;
-- inspect prompt-injection tests;
-- explain an abstention;
-- reproduce a retry/idempotency failure;
-- present the architecture without reading the spec.
+Example:
+
+```text
+$storyguard-learning-review
+Interview me on the retrieval architecture.
+```
+
+It should discuss your answers, not save them automatically.
+
+## Security
+
+```text
+$storyguard-security-review
+```
+
+Use around prompts/RAG/tools/model routing/project isolation/uploads/citations.
+
+## Off-course feature
+
+```text
+$storyguard-feature
+```
+
+Use only if intentionally implementing something outside the normal lesson sequence.
+
+---
+
+# Recommended Daily Flow
+
+```text
+$storyguard-course-lesson
+```
+
+Then just converse naturally.
+
+You do not need special commands for:
+- your lesson answers;
+- approval;
+- checkpoint observations.
+
+Example:
+
+```text
+Codex asks...
+You answer normally.
+
+Codex proposes plan...
+You: yes
+
+Codex implements and gives checkpoint...
+You report what you saw.
+```
+
+The skill owns the workflow.

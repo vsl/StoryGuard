@@ -1,17 +1,23 @@
 ---
 name: storyguard-feature
-description: Implement or change a StoryGuard product feature as a reviewable vertical slice. Use for backend, frontend, ingestion, data model, queue, API, or end-to-end feature work. Do not use for a pure AI behavior experiment; use storyguard-ai-experiment instead.
+description: Implement a specific StoryGuard feature outside the normal course sequence. Discuss consequential design choices and get explicit approval before implementation.
 ---
 
-# StoryGuard Feature Workflow
-1. Read root `AGENTS.md` and relevant spec sections.
-2. Inspect existing code.
-3. State acceptance criteria, affected layers, migrations/API/background/AI implications, and unresolved decisions.
-4. If a consequential decision is unspecified, stop and ask.
-5. Implement one coherent vertical slice, not future lessons.
-6. Add/update tests and run them.
-7. Run relevant Docker smoke checks.
-8. If AI behavior changed, follow `storyguard-ai-experiment`.
-9. If security boundaries changed, follow `storyguard-security-review`.
-10. Update learning/ADR docs when required.
-11. Return the completion report from root `AGENTS.md`.
+# StoryGuard Feature
+
+Use only when intentionally working outside the normal `COURSE.md` sequence.
+
+1. Read root `AGENTS.md` and relevant specs.
+2. Inspect code first.
+3. Explain intended behavior and request/data flow.
+4. Surface consequential choices.
+5. Give recommendation/trade-offs.
+6. Ask for explicit approval.
+7. STOP.
+8. Implement only after approval.
+9. Add/run tests.
+10. Explain actual code path.
+11. If AI behavior changed, use `storyguard-ai-experiment`.
+12. If security boundary changed, use `storyguard-security-review`.
+
+Do not silently alter `COURSE_PROGRESS.md` for off-course work unless it actually completes a course requirement and the developer approves that mapping.

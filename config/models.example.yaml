@@ -1,13 +1,27 @@
 models:
+  local_fast_llm:
+    family: Gemma 4 E4B IT
+
+  local_reasoning_llm:
+    family: Qwen3.6-27B
+
+  openai_fast:
+    model: gpt-5-nano
+
+  openai_reasoning:
+    model: gpt-5.6-luna
+
   embeddings:
     local_default:
       family: EmbeddingGemma
-      hf_repository: RESOLVE_AND_PIN
-      revision: PIN_ME
       dimension: 768
+      hf_repository: RESOLVE_AND_PIN_DURING_IMPLEMENTATION
+      revision: PIN_ME
+
+    api_default:
+      model: text-embedding-3-small
 
   reranker:
     local_default:
-      family: bge-reranker-v2-m3
       hf_repository: BAAI/bge-reranker-v2-m3
       revision: PIN_ME

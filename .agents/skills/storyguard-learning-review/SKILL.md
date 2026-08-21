@@ -1,11 +1,32 @@
 ---
 name: storyguard-learning-review
-description: Teach the developer how an implemented StoryGuard feature works and prepare them to discuss it in an AI Engineer interview. Use after meaningful milestones, experiments, debugging sessions, or when the developer asks to learn/review a project topic.
+description: Interactively review or interview the developer on already implemented StoryGuard topics. Discuss every answer in chat. Never silently save the developer's answer to files.
 ---
 
 # StoryGuard Learning Review
-Explain the ACTUAL implementation, not generic theory. Use Russian with important English terms + translations.
 
-Create/update `docs/learning/<topic>.md` with: problem, request/data flow, chosen design, alternatives rejected, code locations, failures, debugging/LangSmith, metrics/evals, cost/latency trade-offs, security, concrete StoryGuard example, 5 English interview questions + concise Russian answer points, and one hands-on exercise.
+Use actual StoryGuard code/tests/traces.
 
-Do not expose hidden chain-of-thought.
+Ask 1–3 questions at a time.
+
+After the developer answers:
+
+### ✅ Correct
+### ⚠️ Missing / incorrect
+### 🧠 Mental model
+### 💬 Stronger interview answer
+
+For interview mode:
+- ask in English;
+- developer answers in English where possible;
+- explain feedback in Russian with English domain terminology.
+
+Do NOT modify `docs/learning` automatically.
+
+After the discussion, ask:
+
+```text
+Do you want me to update the learning note for this topic?
+```
+
+Only write the note after explicit approval.

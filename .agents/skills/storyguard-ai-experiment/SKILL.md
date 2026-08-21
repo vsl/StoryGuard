@@ -1,19 +1,87 @@
 ---
 name: storyguard-ai-experiment
-description: Change or evaluate StoryGuard AI behavior. Use for prompts, models, LiteLLM routing, retrieval, embeddings, chunking, reranking, planner, query rewriting, HyDE, tool routing, hallucination mitigation, verifier, abstention, or continuity quality.
+description: Design and run StoryGuard AI experiments. Use for prompt/model/routing/retrieval/embedding/reranker/planner/HyDE/verifier/abstention/continuity changes. Developer predicts and interprets results before candidate promotion.
 ---
 
 # StoryGuard AI Experiment
 
-1. Define one falsifiable hypothesis. Do not bundle unrelated AI changes.
-2. Capture baseline: code SHA, dataset/version, prompt versions, model aliases/resolved models, LiteLLM config, embedding/reranker, chunking/retrieval, budgets.
-3. Run baseline on the SAME dataset as candidate.
-4. Record relevant quality + latency + cost metrics. Core metrics include Retrieval Recall@K, answer correctness, citation validity/support, hallucination rate, continuity precision/recall/F1, abstention, routing, p50/p95, API cost, fallback rate.
-5. Make one candidate change while preserving baseline config.
-6. Run LangSmith dataset/experiment where applicable and capture IDs.
-7. Inspect representative failures, not only aggregate metrics.
-8. Report baseline vs candidate, regressions, latency/cost, failure-mode changes, and recommendation.
-9. Do not promote a candidate because one example looks better.
-10. Save `docs/experiments/YYYY-MM-DD-<name>.md` and update the learning note.
+## 1. Explain the variable
 
-The developer should personally interpret the result when this experiment is part of a course lesson.
+In chat explain:
+- baseline;
+- candidate idea;
+- why it could improve;
+- what could regress;
+- relevant metrics.
+
+Ask:
+
+```text
+What do you predict will improve, and what might get worse?
+```
+
+STOP.
+
+## 2. Discuss Prediction
+
+When developer answers:
+
+### ✅ Correct prediction
+### ⚠️ Missing / incorrect assumptions
+### 🧠 Trade-off model to remember
+
+## 3. Propose Experiment Plan
+
+Show:
+- same dataset/version;
+- baseline config;
+- candidate config;
+- metrics;
+- latency/cost;
+- failure categories;
+- LangSmith experiment/traces.
+
+Ask:
+
+```text
+Approve this experiment plan?
+```
+
+STOP.
+
+## 4. Run After Approval
+
+Run baseline and candidate.
+
+Preserve versions/config.
+
+## 5. Show Results — Do Not Choose Winner
+
+Show:
+
+- quality metrics;
+- latency;
+- cost;
+- fallback rate;
+- representative failure examples.
+
+Ask:
+
+```text
+What do you conclude?
+Keep baseline, promote candidate, or run another experiment?
+```
+
+STOP.
+
+## 6. Discuss Conclusion
+
+Correct/extend the developer's interpretation.
+
+Only after explicit developer decision may the primary baseline be changed.
+
+## 7. Save Report
+
+Write `docs/experiments/...` only after result interpretation/decision is discussed.
+
+If the experiment is part of the current course lesson, update learning/progress only after the course checkpoint is complete.

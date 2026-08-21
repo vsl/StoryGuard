@@ -1,13 +1,30 @@
 ---
 name: storyguard-security-review
-description: Review StoryGuard security boundaries for changes involving prompts, RAG/retrieval, tool routing, uploads, project or manuscript-version scoping, LiteLLM/model routing, external services, queues, citations, or sensitive tracing.
+description: Interactively review StoryGuard security for prompts, RAG, tool routing, project/version isolation, uploads, citations, model routing, queues, and LangSmith privacy.
 ---
 
 # StoryGuard Security Review
-Treat user input, manuscript text, retrieved chunks, filenames/uploads, and model output as untrusted.
 
-Check applicable attacks: prompt injection, system prompt extraction, unauthorized tools, arbitrary model/provider selection, cross-project retrieval, old-version retrieval, hallucinated evidence IDs, SQL/ES DSL/path/object-key injection, unsafe HTML, secret exposure, sensitive LangSmith traces.
+1. Explain affected trust boundary.
+2. Ask developer to predict one attack/failure.
+3. STOP.
+4. Discuss prediction.
+5. Propose adversarial test plan.
+6. Ask approval.
+7. Add tests/fixes only after approval.
+8. Give developer one attack/check to reproduce manually.
+9. Discuss observation.
+10. Save security/learning artifact only after understanding.
 
-Verify server-side scope/tool/evidence/model allowlists.
-
-Report boundaries, tests, findings, fixes, and residual risks. A failed security regression test means the change is not complete.
+Applicable tests:
+- indirect prompt injection;
+- system-prompt extraction;
+- unauthorized tool call;
+- arbitrary model selection;
+- cross-project leak;
+- old-version leak;
+- fake evidence ID;
+- arbitrary SQL/ES DSL/path/object key;
+- unsafe HTML;
+- secret leakage;
+- sensitive LangSmith trace leakage.

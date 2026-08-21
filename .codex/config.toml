@@ -1,5 +1,5 @@
-# StoryGuard project-scoped Codex settings.
-# Provider/auth configuration belongs in ~/.codex/config.toml, not this file.
+# Project-scoped Codex configuration.
+# Keep provider credentials in user/machine environment, not in repository config.
 
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"

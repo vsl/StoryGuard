@@ -1,13 +1,17 @@
-# Frontend Rules
+# StoryGuard Frontend Instructions
 
-Read root `AGENTS.md` and `docs/specs/storyguard_ui_spec.md`.
+Read root `AGENTS.md` and UI spec.
 
-- StoryGuard is an evidence-first narrative consistency copilot, not a generic ChatGPT clone.
-- Manuscript viewer is read-only in v1.
-- Normal Search and Ask StoryGuard remain distinct.
-- Important AI claims expose citations/evidence.
-- Loading/progress states reflect real backend state.
-- Never render arbitrary unsanitized LLM HTML.
-- Developer mode shows observable execution metadata, never hidden chain-of-thought.
-- Use Likely / Possible / Needs review, not ERROR.
-- Browser code never calls OpenAI/LiteLLM/LangSmith/MinIO/Elasticsearch directly.
+Root approval gate applies.
+
+Rules:
+
+- StoryGuard is evidence-first, not a generic chatbot.
+- Manuscript is read-only in v1.
+- Normal Search and Ask StoryGuard are distinct.
+- AI claims expose citations/evidence.
+- Developer mode exposes execution metadata, never hidden chain-of-thought.
+- Do not render unsanitized arbitrary LLM HTML.
+- Do not expose provider secrets.
+- Browser never calls LLM/Elasticsearch/MinIO/LangSmith directly.
+- Loading/progress must reflect real backend state.

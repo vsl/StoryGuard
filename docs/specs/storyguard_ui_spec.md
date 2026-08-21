@@ -2250,3 +2250,4 @@ The coding agent must not turn StoryGuard into:
 The frontend should support the core product idea:
 
 **StoryGuard protects story consistency and explains every important AI claim with evidence from the manuscript.**
+
