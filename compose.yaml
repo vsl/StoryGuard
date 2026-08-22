@@ -20,6 +20,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://storyguard:${POSTGRES_PASSWORD:-storyguard}@postgres:5432/storyguard
       ELASTICSEARCH_URL: http://elasticsearch:9200
       MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: storyguard
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-storyguard-dev}
+      MINIO_BUCKET: storyguard-manuscripts
+      MANUSCRIPT_MAX_BYTES: ${MANUSCRIPT_MAX_BYTES:-52428800}
       RABBITMQ_URL: amqp://storyguard:${RABBITMQ_PASSWORD:-storyguard}@rabbitmq:5672/
       LITELLM_URL: http://litellm:4000
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}

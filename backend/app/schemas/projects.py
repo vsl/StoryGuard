@@ -37,5 +37,6 @@ class ProjectRead(BaseModel):
     title: str
     description: str
     language: str
+    current_manuscript_version_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
