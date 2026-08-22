@@ -13,17 +13,18 @@ completed_lessons:
   - "0.1 System boundaries"
   - "0.2 Docker/local architecture"
   - "1.1 FastAPI + PostgreSQL"
+  - "1.2 MinIO + manuscript versions"
 
 current_lesson:
-  id: "1.2"
-  title: "MinIO + manuscript versions"
-  status: "developer_checkpoint"
+  id: "1.3"
+  title: "Taskiq + RabbitMQ"
+  status: "not_started"
 
 current_lesson_state:
-  concept_discussed: true
-  implementation_plan_approved: true
-  implementation_done: true
-  tests_done: true
+  concept_discussed: false
+  implementation_plan_approved: false
+  implementation_done: false
+  tests_done: false
   developer_checkpoint_done: false
   learning_done: false
 ```
