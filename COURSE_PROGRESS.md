@@ -12,10 +12,11 @@ course_status: in_progress
 completed_lessons:
   - "0.1 System boundaries"
   - "0.2 Docker/local architecture"
+  - "1.1 FastAPI + PostgreSQL"
 
 current_lesson:
-  id: "1.1"
-  title: "FastAPI + PostgreSQL"
+  id: "1.2"
+  title: "MinIO + manuscript versions"
   status: "not_started"
 
 current_lesson_state:

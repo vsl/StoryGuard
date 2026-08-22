@@ -1,23 +1,31 @@
 import asyncio
 import os
+from contextlib import asynccontextmanager
 from collections.abc import Awaitable, Callable
 
-import asyncpg
 import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
+from app.api.projects import router as projects_router
+from app.db.session import engine
 from app.health import readiness_payload
 
-app = FastAPI(title="StoryGuard API")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(title="StoryGuard API", lifespan=lifespan)
+app.include_router(projects_router)
 
 
 async def _postgres_ready() -> None:
-    connection = await asyncpg.connect(os.environ["DATABASE_URL"], timeout=2)
-    try:
-        await connection.execute("SELECT 1")
-    finally:
-        await connection.close()
+    async with engine.connect() as connection:
+        await connection.execute(text("SELECT 1"))
 
 
 async def _http_ready(url: str) -> None:
