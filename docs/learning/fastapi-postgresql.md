@@ -16,6 +16,18 @@ An `AsyncSession` is temporary, mutable transaction state for one request. Async
 database I/O lets the event loop serve other work while PostgreSQL is responding;
 it does not make a session safe to share between requests.
 
+These concepts solve different problems:
+
+```text
+async I/O             = the event loop can run other work while the DB call waits
+transaction atomicity = all operations commit together or all roll back
+transaction isolation = concurrent transactions cannot see forbidden intermediate state
+```
+
+Under PostgreSQL's default `READ COMMITTED` isolation, if transaction A updates a
+project title without committing, transaction B still reads the last committed
+title. Using async I/O does not change that visibility rule.
+
 ## StoryGuard implementation
 
 - `backend/app/main.py` registers project routes, checks PostgreSQL readiness through
