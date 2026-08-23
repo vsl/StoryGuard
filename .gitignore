@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 frontend/.next/
 frontend/node_modules/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/

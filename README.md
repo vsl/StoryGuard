@@ -2,6 +2,43 @@
 
 This is the course/control layer for an existing StoryGuard repository.
 
+## Frontend
+
+StoryGuard now includes the complete evidence-first frontend shell described in
+`docs/specs/storyguard_ui_spec.md`. It provides project CRUD, manuscript and
+Story Bible views, continuity review, contextual AI chat, analysis/version
+screens, settings, and the internal AI Experiment Lab.
+
+Start the local stack:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+Browser API calls stay same-origin. Next.js proxies `/api/*` to
+`API_PROXY_TARGET` (`http://backend:8000` in Compose), so internal Docker names
+and backend credentials are never sent to the browser.
+
+The current backend implements project CRUD only. UI features whose endpoints
+do not exist show an explicit unavailable state; they do not display invented
+data or simulated progress. See `docs/frontend-api-gaps.md`.
+
+Frontend checks:
+
+```bash
+cd frontend
+npm test
+npm run lint
+npm run build
+npm run test:e2e
+```
+
 ## Your current position
 
 Already completed:

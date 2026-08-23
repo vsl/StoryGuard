@@ -1,11 +1,99 @@
 @import "tailwindcss";
 
 :root {
-  color: #1f2933;
-  background: #f7f5f0;
-  font-family: Georgia, "Times New Roman", serif;
+  --paper: #f7f6f2;
+  --surface: #ffffff;
+  --ink: #17231f;
+  --muted: #66736e;
+  --line: #dfe5e1;
+  --brand: #075c48;
+  --brand-soft: #e8f2ee;
+  --amber: #b86b08;
+  --amber-soft: #fff4db;
+  --danger: #b7432d;
+  --danger-soft: #fff0eb;
+  --info: #315b86;
+  color: var(--ink);
+  background: var(--paper);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--paper);
+}
 body {
   margin: 0;
+  min-width: 320px;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #87b9aa;
+  outline-offset: 2px;
+}
+::selection {
+  background: #cce5dc;
+}
+
+.page-title {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: -0.025em;
+}
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.subtle-shadow {
+  box-shadow: 0 8px 30px rgb(23 35 31 / 0.06);
+}
+.text-muted {
+  color: var(--muted);
+}
+.skeleton {
+  background: linear-gradient(90deg, #edf0ed 25%, #f6f7f5 50%, #edf0ed 75%);
+  background-size: 200% 100%;
+  animation: skeleton 1.4s infinite;
+}
+@keyframes skeleton {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+@media (max-width: 900px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+  }
 }
