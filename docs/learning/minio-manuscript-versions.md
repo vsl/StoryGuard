@@ -58,8 +58,8 @@ allocation for the same project.
   version remains current.
 - PostgreSQL blobs, client-selected object keys, publication on upload, and a
   storage interface with only one implementation were rejected.
-- The public upload endpoint is deferred until Lesson 1.3 can return a real Taskiq
-  `job_id` instead of a fake queued state.
+- The public upload endpoint is deferred until the real ingestion task can return
+  a meaningful `job_id` instead of a fake queued state.
 
 ## Failure case
 

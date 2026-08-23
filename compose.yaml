@@ -45,10 +45,19 @@ services:
 
   worker:
     build: ./backend
-    command: ["taskiq", "worker", "app.queue.broker:broker"]
+    command:
+      - taskiq
+      - worker
+      - --ack-type
+      - when_executed
+      - app.queue.broker:broker
+      - app.queue.tasks.smoke
     environment:
+      DATABASE_URL: postgresql+asyncpg://storyguard:${POSTGRES_PASSWORD:-storyguard}@postgres:5432/storyguard
       RABBITMQ_URL: amqp://storyguard:${RABBITMQ_PASSWORD:-storyguard}@rabbitmq:5672/
     depends_on:
+      backend:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 

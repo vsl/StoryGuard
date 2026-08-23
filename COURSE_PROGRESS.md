@@ -14,10 +14,11 @@ completed_lessons:
   - "0.2 Docker/local architecture"
   - "1.1 FastAPI + PostgreSQL"
   - "1.2 MinIO + manuscript versions"
+  - "1.3 Taskiq + RabbitMQ"
 
 current_lesson:
-  id: "1.3"
-  title: "Taskiq + RabbitMQ"
+  id: "2.1"
+  title: "Hugging Face dataset lifecycle"
   status: "not_started"
 
 current_lesson_state:
