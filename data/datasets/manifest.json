@@ -1,0 +1,245 @@
+{
+  "datasets": {
+    "public_domain_manuscripts": {
+      "config": "default",
+      "fixture": {
+        "count": 3,
+        "path": "data/datasets/fixtures/manuscripts.jsonl",
+        "records": [
+          {
+            "id": "11",
+            "sha256": "3af622b92d00cc101449bb7df547f190a338bfe878bdb0533a7540e63217f501"
+          },
+          {
+            "id": "120",
+            "sha256": "a9cad7628740dcda6c2f26ac4585283cbf4804b1a438d8dfa33f3bd9668c28e8"
+          },
+          {
+            "id": "1661",
+            "sha256": "48a588e00cdf5149ab8ab571aba8f15fad905e75f01273000c1e988ab4f02a88"
+          }
+        ],
+        "sha256": "d8cce63201cf829a7d7bf9564e288cf6363a047b9a22dd042bc51ebdc0f5bb6a"
+      },
+      "hf_id": "common-pile/project_gutenberg",
+      "license_notes": "Public Domain according to source metadata; verify territorial status before redistribution.",
+      "provenance_url": "https://huggingface.co/datasets/common-pile/project_gutenberg",
+      "revision": "d0bf09a2c2f6f73952733d7a1fe9a34b1cb4348c",
+      "selected_ids": [
+        "11",
+        "120",
+        "1661"
+      ],
+      "source_revision": "01dc90a5002f8977c7fb03a372c14bca29c65cf1",
+      "split": "train"
+    },
+    "retrieval_eval": {
+      "document_config": "documents",
+      "fixtures": {
+        "documents": {
+          "count": 3,
+          "path": "data/datasets/fixtures/retrieval_documents.jsonl",
+          "records": [
+            {
+              "id": "a782ad633c7aa8e20706eabdfbda2dcc_1",
+              "sha256": "9f7ea27a3c2a17a49262bec1982f0f5cf19d76baa9bfbe7a43fe545089dff1c3"
+            },
+            {
+              "id": "a782ad633c7aa8e20706eabdfbda2dcc_2",
+              "sha256": "88a3f42f3514efde15a1587b2446fd3aff5984b3282381f1a318f63a1c41f3ec"
+            },
+            {
+              "id": "a782ad633c7aa8e20706eabdfbda2dcc_3",
+              "sha256": "469d94f84f66753e3b576730dbda8250f703125f5db78705d698d6d472c73985"
+            }
+          ],
+          "sha256": "0289c7c824fe142ea1e9095a8cd69e1b0bfab54dec54e4f8920f8befa75a8665"
+        },
+        "queries": {
+          "count": 20,
+          "path": "data/datasets/fixtures/retrieval_queries.jsonl",
+          "records": [
+            {
+              "id": "aadc08c0a2d2ee000445fcda1efa17f64f7ae43198939eee8bb8e94fc06d6649",
+              "sha256": "7c90f29127ca72740e813ac48d0858ca760967ccf642da944d8bc5c91294a67f"
+            },
+            {
+              "id": "5ab291509e2b7628bbfa06d581a4d417d59b452ea5f9d713223d70ccf5579472",
+              "sha256": "8c45439eccebc127859a531bdc0b599f9f2a0304c401c66ca814f0271268b5f0"
+            },
+            {
+              "id": "9acbf4040a031e2daa0bb9b8d71afd76bfa39dddce7a6cb030f3c3595116891d",
+              "sha256": "739a22864de8449762a704a530bfcaf48ebb10fc77d7f138088065d1d28dc9b9"
+            },
+            {
+              "id": "75a62cfcfaa28934401b1f0a7198ba6c127dfdbcfbce20ee32be0ee4fe9f22f4",
+              "sha256": "faa6df97bde7093ce9e6210e28c8143204f44f5c796495b449338f9804bfa875"
+            },
+            {
+              "id": "6ab793675dad51941078c8f803619e533fcdd1c1dc69c562183a43a35e546e65",
+              "sha256": "90ed1788b9ad424937ddb0638429b377c78a357533e833ec04ff596f5436ac21"
+            },
+            {
+              "id": "8ddf209b008511155cc9ee5e682c811e03df740907437b70e2437679238c0b27",
+              "sha256": "9ba57468ce671b8ce62c9a127b690ac519a86a7e5a44f6e5a9664f2d60f0de6d"
+            },
+            {
+              "id": "b34cdb85385251b31b1441f310c3485d76e25e40cdd74d1f633c6399ab98c956",
+              "sha256": "6b6642a724f652f65c045359f5d10dcb3e1b7a54f4a6d563bb66cd6c02481335"
+            },
+            {
+              "id": "4e349f25b4cc4936d4fa30297953bd90a110be7d3f65c7e9c6e53e94fedf9243",
+              "sha256": "a8cfea4dea9f190ffb6a8c23dd2ad70c8430e38740c1c753ae70463f077c05c6"
+            },
+            {
+              "id": "7686393537f1c3a16cc4c907d0de2398995ea5922ddeff9429d305116f417c16",
+              "sha256": "cd551f6d29e9707efe6be7d19f66a5d9283acaef918e9d03bc562877b9a2d7c4"
+            },
+            {
+              "id": "f9fc55d53d180ee9ed69ec70f14fc340eaf890f6227142a39d5db91f82298dc5",
+              "sha256": "da9c22677d275596a772a515e7cd4824ba4c8bc1b182dbbd702734f8568090ce"
+            },
+            {
+              "id": "718a8f6dcfae88c50274399057eabe339c64d06fdaaa94204f5a23f22a722598",
+              "sha256": "13baf31cfe5166b171a2c2b597030cc401fa0cab64681ef29998c2a452066b4c"
+            },
+            {
+              "id": "0a01d3f34997154f07e485573a49fa28d39f14e0726d420129eb18adba3de0f6",
+              "sha256": "26440592defedc027c25cf67b7e133b3dab0d1d7114a36f5bb46949587883553"
+            },
+            {
+              "id": "ac46ef51ce66f2d4d55d747c53bcac139aa47d19d5805b889e5e75ae0ed627f4",
+              "sha256": "d2c7f5453fdbdd97d56ab4bf9e33eeb3566717e77f1631ed464b06e689b73cfc"
+            },
+            {
+              "id": "f741c83e87ec0b248654d9f1370b6312c851439781350116d9a3010453c1efdf",
+              "sha256": "7bd501e92a4d4bced5e5cbeff1cc8886bd47f195969226b83669038f307725d8"
+            },
+            {
+              "id": "0a64a01506c368662feb28cce1bc1e8c3bd95d6b948ac8ae7ea39478c9e2f3fd",
+              "sha256": "9216e5a8fa2a7071b47b2835ee941705e756701bf5f40826679e588f584ec292"
+            },
+            {
+              "id": "ea471d2c7f6e60049fcfbf24c47aacf5d93a8fdc6c32280f78ff25cdce3f80f0",
+              "sha256": "09971c79459bbf654610afc683bcae82875e33ed55aebce4a921e81cf7e227e7"
+            },
+            {
+              "id": "e07b4a2f6ba6c294c68cc656070ef3043afb2888bdce9bb3392a65e10345fa1b",
+              "sha256": "ed33e0e47c6935bb2dc65e5750d86b886333949169690e89fe758677c762818e"
+            },
+            {
+              "id": "ce49a02b09e375615f230fa6a9f806b7e1a3172bab90a6576a97471dbea7a1b3",
+              "sha256": "cf414b3a6a9592069c4c39369b5a78dcead20d0f959682982f0760f2f7c34276"
+            },
+            {
+              "id": "167b5e6215ce9580fe0685c7082401c987373df50015ca31ca7401a6e77cc95d",
+              "sha256": "8c5072dbf69165c53c3ec3ad9b14449278bbe7760ef9b280c360146986c79b3a"
+            },
+            {
+              "id": "65b31a0e78f3de3f23de996d32a3a57628e0248e63d1992b40c8533e436635aa",
+              "sha256": "d21a279991ca49cfe54b4cfc3c4546814c8fd5aa52d1d9ab180ab4e2ca26a327"
+            }
+          ],
+          "sha256": "4bba6f5aaed64aa98227759a8f7504a9e436c657936284f1c7cb5f7b633598b0"
+        }
+      },
+      "hf_id": "illuin-conteb/narrative-qa",
+      "license_notes": "Original-document rights remain with their authors; keep generated text fixtures local.",
+      "provenance_url": "https://huggingface.co/datasets/illuin-conteb/narrative-qa",
+      "query_config": "queries",
+      "revision": "93e4c746bc03c3a9def375302b4d570c21abbd34",
+      "selected_query_rows": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "split": "test"
+    },
+    "story_qa": {
+      "config": "default",
+      "fixture": {
+        "count": 10,
+        "path": "data/datasets/fixtures/story_qa.jsonl",
+        "records": [
+          {
+            "id": "198a57e7d0154ea7280d9b7995475d214d017407f43065ec23846ef7c3d017cd",
+            "sha256": "6970b11eaa61c83e1a1b8b2606114b76cc0bec5a9f813e97d0571d3ed7ed674f"
+          },
+          {
+            "id": "513673770ff2c56e71f561e292c54e60dde2eaa0374cd1b571e68140de3ff97b",
+            "sha256": "3f21ed6df000f3f68cac78c953eca9c978bd58dda9f57e8c9c1d08a1f17b26de"
+          },
+          {
+            "id": "0f05cabef835c5ae283a8bc0e94de53c9342caa2ba96d067577fd49072145210",
+            "sha256": "553926c2cf6b00d3d3a1968a4adfe9a75b5a5441287ea7f9e4cc0dccc3f049a9"
+          },
+          {
+            "id": "6a04290286a08073692a9f79724c8b7dc8065e17f8010f07ae159a5f93f16c1e",
+            "sha256": "31b60330098bba074656c2d7edaf68351d90e6b3d5aa71173c1abcbedbc0bc22"
+          },
+          {
+            "id": "97df878c86a957a349072e747d5f8e10ad7f9f8102c700165901de1676162f2c",
+            "sha256": "96e302df6a1e7877e028a29f0f0a22dbf6acecc0b051e1e8a4c5b37aad09a665"
+          },
+          {
+            "id": "7f807f62ffddd307943c6ba247434cd050e601c6f830fe45c5403f20d7be14f1",
+            "sha256": "82b252605f4bd1c463c8cb7f91e9c353098e016519d94dc0b9d9f56769f334f7"
+          },
+          {
+            "id": "4d24c6b9f19c0cf4f10a94eb50641961354c60156a06912f9c4065589d5720b1",
+            "sha256": "97ac33a7d8a7919f515a2bdc5926beb41259827198526d9b15d26fc8090e726b"
+          },
+          {
+            "id": "a7ebc6ee1a5146ee6e5dd2928354896e363c98e24f09d3bcdb4fac6aeacbeed5",
+            "sha256": "37f9717e5ab73ea52f62e6bfac75017b1d0535a9449d754e64ea1fbc6a159cfc"
+          },
+          {
+            "id": "609bacb422d675c005e253b433cc881d2a1f1fc9182ad9e42eb58be73e6687b5",
+            "sha256": "a16fd33e22fccc92b8bb9ad85f6436351125c4b6d79a266c8307967912ff8ca2"
+          },
+          {
+            "id": "442c8cc190850e3589fa970b0db6cc32709159e9a63791ca51bf9f7e6c68b386",
+            "sha256": "f435881dfd1ec368aeaa29d0e69222f0463c6a422ce9b67ef7f67c101893d16d"
+          }
+        ],
+        "sha256": "295e1543312839f2d778986fab2dd3286894c8c9b1622b0384711e308fc7484c"
+      },
+      "hf_id": "meithnav/narrativeqa",
+      "license_notes": "Adapted from NarrativeQA; keep generated text fixtures local and review upstream rights before redistribution.",
+      "provenance_url": "https://huggingface.co/datasets/meithnav/narrativeqa",
+      "revision": "32b3dd67ea1863cab04ef3904632e95b3590e94d",
+      "selected_rows": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "split": "train"
+    }
+  },
+  "manifest_version": 1,
+  "transform_version": "storyguard-datasets-v1"
+}

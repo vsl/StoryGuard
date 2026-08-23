@@ -1,0 +1,41 @@
+registry_version: 1
+transform_version: storyguard-datasets-v1
+fixtures_dir: data/datasets/fixtures
+manifest_path: data/datasets/manifest.json
+
+datasets:
+  public_domain_manuscripts:
+    hf_id: common-pile/project_gutenberg
+    revision: d0bf09a2c2f6f73952733d7a1fe9a34b1cb4348c
+    source_revision: 01dc90a5002f8977c7fb03a372c14bca29c65cf1
+    config: default
+    split: train
+    selected_ids: ["11", "120", "1661"]
+    fixture: manuscripts.jsonl
+    purpose: [ingestion, story_memory, continuity_mutation_source]
+    provenance_url: https://huggingface.co/datasets/common-pile/project_gutenberg
+    license_notes: Public Domain according to source metadata; verify territorial status before redistribution.
+
+  story_qa:
+    hf_id: meithnav/narrativeqa
+    revision: 32b3dd67ea1863cab04ef3904632e95b3590e94d
+    config: default
+    split: train
+    selected_rows: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    fixture: story_qa.jsonl
+    purpose: [story_qa, answer_eval]
+    provenance_url: https://huggingface.co/datasets/meithnav/narrativeqa
+    license_notes: Adapted from NarrativeQA; keep generated text fixtures local and review upstream rights before redistribution.
+
+  retrieval_eval:
+    hf_id: illuin-conteb/narrative-qa
+    revision: 93e4c746bc03c3a9def375302b4d570c21abbd34
+    query_config: queries
+    document_config: documents
+    split: test
+    selected_query_rows: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    query_fixture: retrieval_queries.jsonl
+    document_fixture: retrieval_documents.jsonl
+    purpose: [retrieval_eval]
+    provenance_url: https://huggingface.co/datasets/illuin-conteb/narrative-qa
+    license_notes: Original-document rights remain with their authors; keep generated text fixtures local.
