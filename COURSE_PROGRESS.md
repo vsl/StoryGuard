@@ -15,17 +15,18 @@ completed_lessons:
   - "1.1 FastAPI + PostgreSQL"
   - "1.2 MinIO + manuscript versions"
   - "1.3 Taskiq + RabbitMQ"
+  - "2.1 Hugging Face dataset lifecycle"
 
 current_lesson:
-  id: "2.1"
-  title: "Hugging Face dataset lifecycle"
-  status: "developer_checkpoint_pending"
+  id: "2.2"
+  title: "Parsing / chapter / scene / chunking"
+  status: "not_started"
 
 current_lesson_state:
-  concept_discussed: true
-  implementation_plan_approved: true
-  implementation_done: true
-  tests_done: true
+  concept_discussed: false
+  implementation_plan_approved: false
+  implementation_done: false
+  tests_done: false
   developer_checkpoint_done: false
   learning_done: false
 ```
