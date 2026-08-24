@@ -17,10 +17,11 @@ completed_lessons:
   - "1.3 Taskiq + RabbitMQ"
   - "2.1 Hugging Face dataset lifecycle"
   - "2.2 Parsing / chapter / scene / chunking"
+  - "3.1 BM25 baseline"
 
 current_lesson:
-  id: "3.1"
-  title: "BM25 baseline"
+  id: "3.2"
+  title: "Embeddings + vector retrieval"
   status: "not_started"
 
 current_lesson_state:
