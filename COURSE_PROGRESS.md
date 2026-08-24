@@ -16,10 +16,11 @@ completed_lessons:
   - "1.2 MinIO + manuscript versions"
   - "1.3 Taskiq + RabbitMQ"
   - "2.1 Hugging Face dataset lifecycle"
+  - "2.2 Parsing / chapter / scene / chunking"
 
 current_lesson:
-  id: "2.2"
-  title: "Parsing / chapter / scene / chunking"
+  id: "3.1"
+  title: "BM25 baseline"
   status: "not_started"
 
 current_lesson_state:

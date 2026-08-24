@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.db.base import Base
 from app.db.models.job_run import JobRun  # noqa: F401
 from app.db.models.manuscript_version import ManuscriptVersion  # noqa: F401
+from app.db.models.narrative import Chapter, Chunk, Scene  # noqa: F401
 from app.db.models.project import Project  # noqa: F401
 
 config = context.config

@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -47,6 +48,7 @@ class ManuscriptVersion(Base):
     pipeline_version: Mapped[str] = mapped_column(
         String(32), default="v1", server_default="v1"
     )
+    parse_metadata: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.db.models import job_run, manuscript_version, project  # noqa: F401
+from app.db.models import job_run, manuscript_version, narrative, project  # noqa: F401
 
 engine = create_async_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
