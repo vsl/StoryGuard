@@ -197,38 +197,60 @@ def bootstrap(
     outputs[qa_path], qa_fixture = _fixture(qa_path.as_posix(), qa_rows)
 
     retrieval = entries["retrieval_eval"]
-    query_source = _select_indices(
-        _load(loader, retrieval, retrieval["query_config"]),
-        retrieval["selected_query_rows"],
-    )
-    query_rows = []
-    for index, row in zip(
-        retrieval["selected_query_rows"], query_source, strict=True
-    ):
-        source = {
-            "answer": _text(row, "answer"),
-            "chunk_id": _text(row, "chunk_id"),
-            "query": _text(row, "query"),
-        }
-        query_rows.append(
-            {
-                "answer": source["answer"],
-                "id": _row_hash(source),
-                "query": source["query"],
-                "relevant_chunk_id": source["chunk_id"],
-                "source_row": index,
-            }
-        )
-    chunk_ids = list(dict.fromkeys(row["relevant_chunk_id"] for row in query_rows))
     document_source = _select_ids(
         _load(loader, retrieval, retrieval["document_config"]),
-        "chunk_id",
-        chunk_ids,
+        "title",
+        retrieval["selected_titles"],
     )
-    document_rows = [
-        {"id": _text(row, "chunk_id"), "text": _text(row, "chunk")}
-        for row in document_source
-    ]
+    document_rows = []
+    documents_by_title = {}
+    for row in document_source:
+        source = {
+            "author": _text(row, "author"),
+            "date": _text(row, "date"),
+            "title": _text(row, "title"),
+        }
+        document = {**source, "id": _row_hash(source), "text": _text(row, "text")}
+        document_rows.append(document)
+        documents_by_title[source["title"]] = document
+
+    selected_titles = set(retrieval["selected_titles"])
+    development_titles = set(retrieval["development_titles"])
+    if not development_titles <= selected_titles:
+        raise ValueError("Development titles must be selected retrieval titles")
+    query_rows = []
+    for index, row in enumerate(_load(loader, retrieval, retrieval["query_config"])):
+        title = _text(row, "title")
+        if title not in selected_titles:
+            continue
+        source = {
+            "answer": _text(row, "answer"),
+            "evidence": _text(row, "chunk-must-contain"),
+            "query": _text(row, "question"),
+            "title": title,
+        }
+        document = documents_by_title[title]
+        occurrences = document["text"].count(source["evidence"])
+        if occurrences != 1:
+            raise ValueError(
+                f"Expected one exact evidence occurrence in {title}, found {occurrences}"
+            )
+        query_rows.append(
+            {
+                **source,
+                "book_id": document["id"],
+                "id": _row_hash(source),
+                "source_row": index,
+                "split": "dev" if title in development_titles else "test",
+            }
+        )
+    if len(query_rows) != retrieval["expected_query_count"]:
+        raise ValueError(
+            f"Expected {retrieval['expected_query_count']} retrieval queries, "
+            f"found {len(query_rows)}"
+        )
+    if len({row["id"] for row in query_rows}) != len(query_rows):
+        raise ValueError("Duplicate retrieval query ID")
     query_path = fixtures_dir / retrieval["query_fixture"]
     document_path = fixtures_dir / retrieval["document_fixture"]
     outputs[query_path], query_fixture = _fixture(query_path.as_posix(), query_rows)
@@ -261,7 +283,10 @@ def bootstrap(
                     retrieval,
                     query_config=retrieval["query_config"],
                     document_config=retrieval["document_config"],
-                    selected_query_rows=retrieval["selected_query_rows"],
+                    selected_titles=retrieval["selected_titles"],
+                    development_titles=retrieval["development_titles"],
+                    expected_query_count=retrieval["expected_query_count"],
+                    original_source=retrieval["original_source"],
                 ),
                 "fixtures": {
                     "queries": query_fixture,

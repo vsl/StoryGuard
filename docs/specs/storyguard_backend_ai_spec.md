@@ -3527,10 +3527,16 @@ Use for factual/multi-hop Story QA, answer correctness, evidence/citation evalua
 Primary source:
 
 ```text
-illuin-conteb/narrative-qa
+feyninc/gacha
 ```
 
-Use for query-to-relevant-chunk evaluation, Recall@K/MRR, BM25 vs vector vs hybrid vs hybrid+reranker, query rewriting, and HyDE experiments.
+Use the pinned `corpus/train` and `questions/train` configurations for
+query-to-relevant-chunk evaluation, Recall@K/MRR, BM25 vs vector vs hybrid vs
+hybrid+reranker, query rewriting, and HyDE experiments. Derive relevance from
+the exact `chunk-must-contain` evidence span after StoryGuard chunking; never
+trust a supplied chunk ID. Search only the corresponding book's project and
+manuscript version, and label every overlapping chunk containing the evidence
+as relevant.
 
 ## Continuity dataset
 

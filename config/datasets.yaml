@@ -1,5 +1,5 @@
 registry_version: 1
-transform_version: storyguard-datasets-v1
+transform_version: storyguard-datasets-v2
 fixtures_dir: data/datasets/fixtures
 manifest_path: data/datasets/manifest.json
 
@@ -28,14 +28,31 @@ datasets:
     license_notes: Adapted from NarrativeQA; keep generated text fixtures local and review upstream rights before redistribution.
 
   retrieval_eval:
-    hf_id: illuin-conteb/narrative-qa
-    revision: 93e4c746bc03c3a9def375302b4d570c21abbd34
-    query_config: queries
-    document_config: documents
-    split: test
-    selected_query_rows: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    hf_id: feyninc/gacha
+    revision: 076b8b186236941df371a8d9b14be4cb4c7498fb
+    query_config: questions
+    document_config: corpus
+    split: train
+    selected_titles:
+      - Alice's Adventures in Wonderland
+      - Moby Dick; Or, The Whale
+      - Pride and Prejudice
+      - Frankenstein; Or, The Modern Prometheus
+      - The Adventures of Tom Sawyer, Complete
+      - Anne of Green Gables
+      - Treasure Island
+      - The Adventures of Sherlock Holmes
+      - A Christmas Carol in Prose; Being a Ghost Story of Christmas
+      - Little Women
+    development_titles:
+      - Alice's Adventures in Wonderland
+      - A Christmas Carol in Prose; Being a Ghost Story of Christmas
+    expected_query_count: 292
     query_fixture: retrieval_queries.jsonl
     document_fixture: retrieval_documents.jsonl
     purpose: [retrieval_eval]
-    provenance_url: https://huggingface.co/datasets/illuin-conteb/narrative-qa
-    license_notes: Original-document rights remain with their authors; keep generated text fixtures local.
+    provenance_url: https://huggingface.co/datasets/feyninc/gacha
+    license_notes: CC BY-NC-SA 4.0; non-commercial use only, preserve attribution/share-alike, and verify territorial public-domain status before redistribution.
+    original_source:
+      hf_id: LumberChunker/GutenQA
+      revision: 5f0f6f10d92a819f8efac7c10c0c983033bbe430

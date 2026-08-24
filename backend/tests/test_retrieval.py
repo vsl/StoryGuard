@@ -56,6 +56,7 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
             ],
         )
         self.assertEqual(body["size"], 2)
+        self.assertEqual(body["sort"], [{"_score": "desc"}, {"chunk_id": "asc"}])
         self.assertEqual([result.chunk_id for result in results], [s["chunk_id"] for s in sources])
         self.assertEqual([result.score for result in results], [4.2, 2.1])
 

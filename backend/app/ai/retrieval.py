@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import httpx
 
 
-INDEX_NAME = "storyguard-chunks-v1"
+INDEX_NAME = os.environ.get("STORYGUARD_CHUNK_INDEX", "storyguard-chunks-v1")
 INDEX_MAPPING = {
     "mappings": {
         "dynamic": "strict",
@@ -129,6 +129,7 @@ async def retrieve_bm25(
         f"/{INDEX_NAME}/_search",
         json={
             "size": top_k,
+            "sort": [{"_score": "desc"}, {"chunk_id": "asc"}],
             "query": {
                 "bool": {
                     "must": [{"match": {"text": {"query": query}}}],

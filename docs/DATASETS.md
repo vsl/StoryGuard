@@ -38,7 +38,7 @@ Use for:
 Hugging Face:
 
 ```text
-illuin-conteb/narrative-qa
+feyninc/gacha
 ```
 
 Use for:
@@ -47,6 +47,21 @@ Use for:
 - MRR;
 - query rewriting;
 - HyDE experiments.
+
+Pin revision `076b8b186236941df371a8d9b14be4cb4c7498fb` and use the
+`corpus/train` and `questions/train` configurations. The local fixture contains
+ten selected public-domain narrative books: two development books and eight
+held-out test books.
+
+Ground truth is never a supplied chunk ID. For each question, locate the exact
+`chunk-must-contain` evidence in its corresponding full book, run StoryGuard's
+normal parser, and label every resulting overlapping chunk containing that
+evidence as relevant. Retrieval remains scoped to that book's deterministic
+project and manuscript version.
+
+Gacha is licensed CC BY-NC-SA 4.0. StoryGuard uses it only for this
+non-commercial project, preserves provenance, and does not assume that a work's
+US public-domain status applies in every territory.
 
 ## Continuity
 
