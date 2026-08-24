@@ -68,6 +68,13 @@ Before implementation, read as relevant:
 
 Do not silently change locked architecture.
 
+For an integration lesson, also inspect:
+
+- production frontend data sources and API client/query usage;
+- frontend test mocks separately from production behavior;
+- backend route registrations, schemas, and completed domain workflows;
+- `docs/frontend-api-gaps.md` if present.
+
 If a consequential decision is missing:
 
 1. explain the ambiguity in chat;
@@ -111,6 +118,28 @@ Do NOT introduce by default:
 - fine-tuning
 - multi-agent swarm
 - GCP at the current course stage
+
+---
+
+# Frontend / Backend Integration Rule
+
+Do not postpone all UI/backend wiring to Phase 11.
+
+For an explicit integration lesson:
+
+1. Treat completed lessons as prerequisites; inspect their real implementation without reteaching them.
+2. Classify every relevant UI path:
+   - **already real** — production UI already reaches a real endpoint; verify it and avoid churn;
+   - **thin API missing** — completed domain data/logic needs a small route/schema;
+   - **integration orchestration missing** — completed components need request-to-job or success/failure lifecycle glue;
+   - **future capability** — depends on a later lesson; keep it explicitly unavailable or disabled.
+3. Do not mistake Playwright/unit route mocks for production frontend mocks.
+4. Fix integration lifecycle invariants needed by the approved vertical slice, but do not expand into future domain or AI behavior.
+5. Keep project and manuscript-version scope server-enforced and return only safe job errors.
+6. Prove at least one real browser-to-backend/storage/worker flow without intercepting or mocking its application API requests.
+7. During the approved implementation, update `docs/frontend-api-gaps.md` to match the resulting reality.
+
+Phase 11 remains final end-to-end hardening of already integrated capabilities.
 
 ---
 

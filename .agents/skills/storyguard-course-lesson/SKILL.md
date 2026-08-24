@@ -39,6 +39,8 @@ Rules:
 - If `current_lesson.status = not_started`, begin that lesson.
 - If a lesson is partially implemented, inspect actual repo state before deciding what to resume.
 - If state is ambiguous, discuss it with the developer instead of guessing.
+- For an API/UI/integration/vertical-slice lesson, inspect production frontend data sources, test-only mocks, backend routes/schemas and completed workflows, and `docs/frontend-api-gaps.md` if present before teaching or planning.
+- An inserted integration lesson does not reopen completed lessons; use them as prerequisites while checking whether their capabilities form a complete vertical slice.
 
 ---
 
@@ -109,6 +111,19 @@ Include:
 - trace/eval/security implications;
 - what is deliberately not included yet.
 
+For an integration lesson, also show this gap matrix:
+
+```text
+UI path / screen
+→ production state: real call | static placeholder | unavailable/disabled
+→ test state: real stack | mocked route | not covered
+→ backend state: endpoint | domain capability only | orchestration gap | future capability
+→ action now: verify | wire | add thin API | complete orchestration | defer
+→ reason and course boundary
+```
+
+Do not propose future course capabilities merely to remove an unavailable state or test mock.
+
 End with:
 
 ```text
@@ -141,6 +156,15 @@ Only after approval:
 - run eval/security checks when relevant.
 
 Do not implement future lessons “while here”.
+
+For integration lessons:
+
+- connect only capabilities supported by completed lessons and the approved API/orchestration glue needed to expose them;
+- preserve explicit unavailable/disabled states for future capabilities;
+- update `docs/frontend-api-gaps.md` during implementation;
+- test project/manuscript-version isolation and safe failure responses;
+- run frontend contract/unit checks and at least one real browser-to-backend/storage/worker E2E flow without application API interception;
+- if the real local stack is unavailable, report the blocker and do not complete the lesson from mocked evidence alone.
 
 After approval, update `COURSE_PROGRESS.md` as implementation progresses if useful.
 

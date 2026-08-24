@@ -42,7 +42,7 @@ Never skip the discussion/approval steps.
 
 ## Phase 1 — Application Backbone
 
-- **1.1 FastAPI + PostgreSQL** — CURRENT NEXT LESSON
+- 1.1 FastAPI + PostgreSQL
 - 1.2 MinIO + manuscript versions
 - 1.3 Taskiq + RabbitMQ
 
@@ -54,6 +54,14 @@ Never skip the discussion/approval steps.
 ## Phase 3 — Retrieval
 
 - 3.1 BM25 baseline
+- **3.1A Application API/UI integration catch-up**
+  - audit production frontend data sources, test-only mocks, backend routes/schemas, completed domain workflows, and `docs/frontend-api-gaps.md`;
+  - classify each UI path as already real, missing a thin API, missing integration orchestration over completed capabilities, or dependent on a future lesson;
+  - verify project CRUD rather than rebuilding it;
+  - connect manuscript upload/version history, job progress, basic success/failure version promotion, and parsed chapter viewing using capabilities from Lessons 1.1–3.1;
+  - expose only aggregates supported by completed capabilities; keep later Story Bible, continuity, Story QA, vector/hybrid/reranker, LangSmith, and other future behavior explicitly unavailable or disabled;
+  - prove one browser-to-backend/storage/worker vertical slice without intercepting or mocking its application API requests;
+  - leave archival, old-index cleanup, concurrency hardening, and the full re-index lifecycle to Lesson 10.3; do not reopen completed lessons or implement other future capabilities.
 - 3.2 Embeddings + vector retrieval
 - 3.3 Hybrid retrieval with RRF
 - 3.4 Cross-encoder reranking
@@ -109,6 +117,14 @@ Never skip the discussion/approval steps.
 - 11.1 End-to-end Story QA
 - 11.2 End-to-end Continuity
 - 11.3 Final AI experiment review
+
+---
+
+## Integration sequencing rule
+
+Connect user-visible capabilities in their lesson or an immediate catch-up lesson instead of postponing all UI/backend wiring to Phase 11. A catch-up lesson may add thin APIs and missing orchestration over completed capabilities, but it must not pull future domain or AI capabilities forward.
+
+Phase 11 remains final end-to-end hardening of already integrated capabilities.
 
 ---
 

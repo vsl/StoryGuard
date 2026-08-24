@@ -20,8 +20,8 @@ completed_lessons:
   - "3.1 BM25 baseline"
 
 current_lesson:
-  id: "3.2"
-  title: "Embeddings + vector retrieval"
+  id: "3.1A"
+  title: "Application API/UI integration catch-up"
   status: "not_started"
 
 current_lesson_state:
@@ -40,6 +40,12 @@ Lessons `0.1` and `0.2` were already completed before this progress file was int
 Do NOT make the developer repeat them unless they explicitly request a review.
 
 Do NOT invent retrospective learning notes for those lessons unless the developer asks for them.
+
+### Curriculum insertion after 3.1
+
+Lesson `3.1A Application API/UI integration catch-up` was inserted because application capabilities completed in Lessons `1.1`–`3.1` were not yet exposed as a complete browser-to-backend vertical slice.
+
+This does not invalidate or reopen those lessons. Lesson `3.1A` verifies what is already real, adds only missing API/integration glue over completed capabilities, and leaves Lesson `3.2` as the next retrieval lesson.
 
 ## Progress update rules
 
