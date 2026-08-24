@@ -9,11 +9,14 @@ StoryGuard now includes the complete evidence-first frontend shell described in
 Story Bible views, continuity review, contextual AI chat, analysis/version
 screens, settings, and the internal AI Experiment Lab.
 
-Start the local stack:
+Start the currently implemented application slice:
 
 ```bash
-docker compose up --build
+docker compose up -d --build frontend worker
 ```
+
+Compose starts their PostgreSQL, MinIO, RabbitMQ, Elasticsearch, and backend
+dependencies. LiteLLM configuration belongs to its later course lesson.
 
 Then open:
 
@@ -25,9 +28,10 @@ Browser API calls stay same-origin. Next.js proxies `/api/*` to
 `API_PROXY_TARGET` (`http://backend:8000` in Compose), so internal Docker names
 and backend credentials are never sent to the browser.
 
-The current backend implements project CRUD only. UI features whose endpoints
-do not exist show an explicit unavailable state; they do not display invented
-data or simulated progress. See `docs/frontend-api-gaps.md`.
+The backend implements project CRUD plus the real manuscript upload, version,
+job progress, parsing/BM25 ingestion, and chapter-reading vertical slice. Later
+UI capabilities whose endpoints do not exist show an explicit unavailable
+state. See `docs/frontend-api-gaps.md`.
 
 Frontend checks:
 
@@ -41,18 +45,7 @@ npm run test:e2e
 
 ## Your current position
 
-Already completed:
-
-```text
-Lesson 0.1 — System boundaries
-Lesson 0.2 — Docker/local architecture
-```
-
-Next:
-
-```text
-Lesson 1.1 — FastAPI + PostgreSQL
-```
+See `COURSE_PROGRESS.md`, the authoritative course cursor.
 
 ## Normal command
 

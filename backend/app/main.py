@@ -9,18 +9,27 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.projects import router as projects_router
+from app.api.ingestion import router as ingestion_router
 from app.db.session import engine
 from app.health import readiness_payload
+from app.queue.broker import broker
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    yield
-    await engine.dispose()
+    if not broker.is_worker_process:
+        await broker.startup()
+    try:
+        yield
+    finally:
+        if not broker.is_worker_process:
+            await broker.shutdown()
+        await engine.dispose()
 
 
 app = FastAPI(title="StoryGuard API", lifespan=lifespan)
 app.include_router(projects_router)
+app.include_router(ingestion_router)
 
 
 async def _postgres_ready() -> None:

@@ -22,7 +22,7 @@ import {
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -99,6 +99,7 @@ function listOf<T>(data: T[] | { items?: T[] } | undefined) {
 
 export function VersionsScreen({ projectId }: { projectId: string }) {
   const welcome = useSearchParams().get("welcome") === "1";
+  const project = useProject(projectId);
   const versions = useEndpoint<
     ManuscriptVersion[] | { items?: ManuscriptVersion[] }
   >(["versions", projectId], `/projects/${projectId}/manuscripts`);
@@ -115,6 +116,14 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
         ? 2000
         : false,
   });
+  const refetchVersions = versions.refetch;
+  const refetchProject = project.refetch;
+
+  useEffect(() => {
+    if (["completed", "failed"].includes(job.data?.status ?? "")) {
+      void Promise.all([refetchVersions(), refetchProject()]);
+    }
+  }, [job.data?.status, refetchProject, refetchVersions]);
 
   function upload(event: FormEvent) {
     event.preventDefault();
@@ -172,7 +181,7 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             ? "Your story is ready for a manuscript"
             : "Manuscript Versions"
         }
-        description="Uploading a new version rebuilds the Story Bible, search index, embeddings, and continuity analysis. Old analysis history remains available."
+        description="Uploading a new version parses its chapters and rebuilds the BM25 manuscript index. The previous ready version stays current until processing succeeds."
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card className="p-6">
@@ -205,7 +214,10 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
                       version.version ??
                       "Manuscript"}
                   </h3>
-                  {index === 0 && <Badge tone="good">Current</Badge>}
+                  {version.id ===
+                    project.data?.current_manuscript_version_id && (
+                    <Badge tone="good">Current</Badge>
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-muted">
                   {version.created_at

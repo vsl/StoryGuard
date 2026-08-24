@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from app.db.models.job_run import JobRun
 from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.narrative import Chapter, Chunk, Scene
+from app.db.models.project import Project
 from app.db.session import SessionLocal
 from app.ai.retrieval import replace_version_chunks
 from app.manuscripts import minio_client
@@ -167,9 +168,11 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
         async with SessionLocal() as session, session.begin():
             job = await session.get(JobRun, job_id, with_for_update=True)
             version = await session.get(ManuscriptVersion, version_id, with_for_update=True)
+            project = await session.get(Project, project_id, with_for_update=True)
             if (
                 job is None
                 or version is None
+                or project is None
                 or job.manuscript_version_id != version.id
                 or version.project_id != job.project_id
             ):
@@ -178,6 +181,9 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             job.stage = "bm25_indexed"
             job.completed_units = job.total_units = len(chapters)
             job.completed_at = datetime.now(timezone.utc)
+            version.status = "ready"
+            version.ready_at = job.completed_at
+            project.current_manuscript_version_id = version.id
     except Exception:
         await _mark_failed(
             job_id,

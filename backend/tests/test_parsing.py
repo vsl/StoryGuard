@@ -264,9 +264,10 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             project = await session.get(Project, self.project_id)
         self.assertEqual((persisted_job.status, persisted_job.attempts), ("completed", 1))
         self.assertEqual((chapter_count, scene_count, chunk_count), (1, 2, 2))
-        self.assertEqual(persisted_version.status, "processing")
+        self.assertEqual(persisted_version.status, "ready")
+        self.assertIsNotNone(persisted_version.ready_at)
         self.assertEqual(persisted_version.parse_metadata["chunking"]["overlap_tokens"], 100)
-        self.assertIsNone(project.current_manuscript_version_id)
+        self.assertEqual(project.current_manuscript_version_id, version.id)
 
         bad_version, bad_job = await self._version_and_job("bad.txt", b"\xff")
         with self.assertRaisesRegex(ValueError, "UTF-8"):
@@ -276,7 +277,7 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             bad_job = await session.get(JobRun, bad_job.id)
             project = await session.get(Project, self.project_id)
         self.assertEqual((bad_version.status, bad_job.status), ("failed", "failed"))
-        self.assertIsNone(project.current_manuscript_version_id)
+        self.assertEqual(project.current_manuscript_version_id, version.id)
 
         scoped_version, scoped_job = await self._version_and_job(
             "scope.txt", b"Chapter 1\nScoped text."
