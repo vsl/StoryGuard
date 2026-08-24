@@ -165,22 +165,41 @@ async def run() -> dict:
                 for chunk_id in relevant_ids
                 if chunk_id in retrieved_ids
             ]
+            rank = min(relevant_ranks) if relevant_ranks else None
             results.append(
                 {
+                    "answer": query["answer"],
                     "book": query["title"],
+                    "evidence": query["evidence"],
                     "id": query["id"],
                     "latency_ms": latency_ms,
                     "query": query["query"],
-                    "rank": min(relevant_ranks) if relevant_ranks else None,
+                    "rank": rank,
                     "relevant_ids": relevant_ids,
                     "retrieved_ids": retrieved_ids,
                     "split": query["split"],
+                    "top_chunks": [
+                        {
+                            "contains_exact_evidence": query["evidence"] in hit.text,
+                            "preview": " ".join(hit.text.split())[:600],
+                            "rank": hit_rank,
+                            "score": hit.score,
+                        }
+                        for hit_rank, hit in enumerate(hits[:10], 1)
+                    ]
+                    if rank is None or rank > 10
+                    else [],
                 }
             )
     finally:
         await delete_experiment_index()
 
     failures = [row for row in results if row["rank"] != 1]
+    hard_test_failures = [
+        row
+        for row in results
+        if row["split"] == "test" and (row["rank"] is None or row["rank"] > 10)
+    ]
     return {
         "strategy": "bm25",
         "dataset": {
@@ -219,6 +238,17 @@ async def run() -> dict:
                 "relevant_count": len(row["relevant_ids"]),
             }
             for row in failures[:20]
+        ],
+        "diagnostic_examples": [
+            {
+                "book": row["book"],
+                "question": row["query"],
+                "gold_answer": row["answer"],
+                "gold_evidence": row["evidence"],
+                "first_labeled_rank": row["rank"],
+                "top_10_chunks": row["top_chunks"],
+            }
+            for row in hard_test_failures[:3]
         ],
     }
 
