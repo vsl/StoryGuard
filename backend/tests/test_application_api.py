@@ -4,6 +4,10 @@ import unittest
 import uuid
 from unittest.mock import AsyncMock, patch
 
+
+def fake_embeddings(texts: list[str]) -> list[list[float]]:
+    return [[1.0, *([0.0] * 767)] for _ in texts]
+
 RUN_DATABASE_TESTS = os.environ.get("RUN_DATABASE_TESTS") == "1"
 
 if RUN_DATABASE_TESTS:
@@ -88,7 +92,11 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
             [],
         )
 
-        await run_parse_and_ingest(uuid.UUID(upload["job_id"]))
+        with patch(
+            "app.queue.tasks.ingestion.embed_documents",
+            side_effect=fake_embeddings,
+        ):
+            await run_parse_and_ingest(uuid.UUID(upload["job_id"]))
 
         project = (
             await self.client.get(f"/api/projects/{self.project_id}")

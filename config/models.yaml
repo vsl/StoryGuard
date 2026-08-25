@@ -1,0 +1,9 @@
+models:
+  embeddings:
+    local_default:
+      provider: sentence_transformers
+      family: EmbeddingGemma
+      hf_repository: google/embeddinggemma-300m
+      revision: 57c266a740f537b4dc058e1b0cda161fd15afa75
+      version: embeddinggemma-v1
+      dimension: 768

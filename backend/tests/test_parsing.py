@@ -3,10 +3,15 @@ import io
 import os
 import unittest
 import uuid
+from unittest.mock import patch
 
 from docx import Document
 
 from app.parsing import ChunkingConfig, parse_manuscript, token_spans
+
+
+def fake_embeddings(texts: list[str]) -> list[list[float]]:
+    return [[1.0, *([0.0] * 767)] for _ in texts]
 
 
 class ParsingTest(unittest.TestCase):
@@ -236,8 +241,12 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         version, job = await self._version_and_job(
             "story.txt", b"Chapter 1\nAlice waited.\n\n***\n\nBob arrived."
         )
-        await run_parse_and_ingest(job.id)
-        await run_parse_and_ingest(job.id)
+        with patch(
+            "app.queue.tasks.ingestion.embed_documents",
+            side_effect=fake_embeddings,
+        ):
+            await run_parse_and_ingest(job.id)
+            await run_parse_and_ingest(job.id)
 
         async with SessionLocal() as session:
             persisted_job = await session.get(JobRun, job.id)
@@ -261,9 +270,17 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                     Chunk.manuscript_version_id == version.id
                 )
             )
+            embedding_versions = set(
+                await session.scalars(
+                    select(Chunk.embedding_version).where(
+                        Chunk.manuscript_version_id == version.id
+                    )
+                )
+            )
             project = await session.get(Project, self.project_id)
         self.assertEqual((persisted_job.status, persisted_job.attempts), ("completed", 1))
         self.assertEqual((chapter_count, scene_count, chunk_count), (1, 2, 2))
+        self.assertEqual(embedding_versions, {"embeddinggemma-v1"})
         self.assertEqual(persisted_version.status, "ready")
         self.assertIsNotNone(persisted_version.ready_at)
         self.assertEqual(persisted_version.parse_metadata["chunking"]["overlap_tokens"], 100)
@@ -277,6 +294,30 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             bad_job = await session.get(JobRun, bad_job.id)
             project = await session.get(Project, self.project_id)
         self.assertEqual((bad_version.status, bad_job.status), ("failed", "failed"))
+        self.assertEqual(project.current_manuscript_version_id, version.id)
+
+        embedding_version, embedding_job = await self._version_and_job(
+            "embedding.txt", b"Chapter 1\nEmbedding failure."
+        )
+        with (
+            patch(
+                "app.queue.tasks.ingestion.embed_documents",
+                side_effect=RuntimeError("private model path"),
+            ),
+            self.assertRaisesRegex(RuntimeError, "private model path"),
+        ):
+            await run_parse_and_ingest(embedding_job.id)
+        async with SessionLocal() as session:
+            embedding_version = await session.get(
+                ManuscriptVersion, embedding_version.id
+            )
+            embedding_job = await session.get(JobRun, embedding_job.id)
+            project = await session.get(Project, self.project_id)
+        self.assertEqual(
+            (embedding_version.status, embedding_job.status, embedding_job.error_code),
+            ("failed", "failed", "EMBEDDING_FAILED"),
+        )
+        self.assertNotIn("private", embedding_job.error_message_safe)
         self.assertEqual(project.current_manuscript_version_id, version.id)
 
         scoped_version, scoped_job = await self._version_and_job(

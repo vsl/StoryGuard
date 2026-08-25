@@ -30,6 +30,12 @@ services:
       LITELLM_URL: http://litellm:4000
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-storyguard-local}
+      HF_HOME: /models
+      HF_TOKEN: ${HF_TOKEN:-}
+      STORYGUARD_MODELS_CONFIG: /app/config/models.yaml
+    volumes:
+      - model_cache:/models
+      - ./config/models.yaml:/app/config/models.yaml:ro
     ports:
       - "8000:8000"
     depends_on:
@@ -63,6 +69,12 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-storyguard-dev}
       MINIO_BUCKET: storyguard-manuscripts
       RABBITMQ_URL: amqp://storyguard:${RABBITMQ_PASSWORD:-storyguard}@rabbitmq:5672/
+      HF_HOME: /models
+      HF_TOKEN: ${HF_TOKEN:-}
+      STORYGUARD_MODELS_CONFIG: /app/config/models.yaml
+    volumes:
+      - model_cache:/models
+      - ./config/models.yaml:/app/config/models.yaml:ro
     depends_on:
       backend:
         condition: service_healthy

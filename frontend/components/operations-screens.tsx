@@ -181,7 +181,7 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             ? "Your story is ready for a manuscript"
             : "Manuscript Versions"
         }
-        description="Uploading a new version parses its chapters and rebuilds the BM25 manuscript index. The previous ready version stays current until processing succeeds."
+        description="Uploading a new version parses its chapters and rebuilds the manuscript search index. The previous ready version stays current until processing succeeds."
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card className="p-6">

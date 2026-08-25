@@ -1,4 +1,6 @@
+import argparse
 import asyncio
+import gc
 import hashlib
 import json
 import os
@@ -12,11 +14,17 @@ import httpx
 
 os.environ["STORYGUARD_CHUNK_INDEX"] = "storyguard-chunks-gacha-eval-v2"
 
+from app.ai.embeddings import (
+    EMBEDDING_VERSION,
+    embed_documents,
+    get_embedding_provider,
+)
 from app.ai.retrieval import (
     INDEX_NAME,
     _request,
     replace_version_chunks,
     retrieve_bm25,
+    retrieve_vector,
 )
 from app.parsing import (
     ChunkingConfig,
@@ -122,78 +130,66 @@ def metrics(results: list[dict]) -> dict:
     }
 
 
-async def run() -> dict:
-    books = load("retrieval_documents.jsonl")
-    queries = load("retrieval_queries.jsonl")
-    documents_by_book = {book["id"]: chunk_book(book) for book in books}
-    scopes = {book_id: scope(book_id) for book_id in documents_by_book}
-    relevant_by_query = {}
-    for query in queries:
-        relevant = [
-            document["chunk_id"]
-            for document in documents_by_book[query["book_id"]]
-            if query["evidence"] in document["text"]
-        ]
-        if not relevant:
-            raise ValueError(f"No StoryGuard chunk contains evidence for {query['id']}")
-        relevant_by_query[query["id"]] = relevant
-
+async def evaluate(
+    strategy: str,
+    queries: list[dict],
+    scopes: dict[str, tuple[str, str]],
+    relevant_by_query: dict[str, list[str]],
+) -> list[dict]:
+    retrieve = retrieve_bm25 if strategy == "bm25" else retrieve_vector
     results = []
-    await delete_experiment_index()
-    try:
-        for book_id, documents in documents_by_book.items():
-            project_id, version_id = scopes[book_id]
-            await replace_version_chunks(project_id, version_id, documents)
+    for query in queries:
+        project_id, version_id = scopes[query["book_id"]]
+        started = time.perf_counter()
+        hits = await retrieve(query["query"], project_id, version_id, top_k=TOP_K)
+        latency_ms = (time.perf_counter() - started) * 1_000
+        if any(
+            hit.project_id != project_id
+            or hit.manuscript_version_id != version_id
+            for hit in hits
+        ):
+            raise RuntimeError("Retrieval returned a chunk outside the book scope")
+        retrieved_ids = [hit.chunk_id for hit in hits]
+        relevant_ids = relevant_by_query[query["id"]]
+        relevant_ranks = [
+            retrieved_ids.index(chunk_id) + 1
+            for chunk_id in relevant_ids
+            if chunk_id in retrieved_ids
+        ]
+        rank = min(relevant_ranks) if relevant_ranks else None
+        results.append(
+            {
+                "answer": query["answer"],
+                "book": query["title"],
+                "evidence": query["evidence"],
+                "id": query["id"],
+                "latency_ms": latency_ms,
+                "query": query["query"],
+                "rank": rank,
+                "relevant_ids": relevant_ids,
+                "retrieved_ids": retrieved_ids,
+                "split": query["split"],
+                "top_chunks": [
+                    {
+                        "contains_exact_evidence": query["evidence"] in hit.text,
+                        "preview": " ".join(hit.text.split())[:600],
+                        "rank": hit_rank,
+                        "score": hit.score,
+                    }
+                    for hit_rank, hit in enumerate(hits[:10], 1)
+                ]
+                if rank is None or rank > 10
+                else [],
+            }
+        )
+    return results
 
-        for query in queries:
-            project_id, version_id = scopes[query["book_id"]]
-            started = time.perf_counter()
-            hits = await retrieve_bm25(
-                query["query"], project_id, version_id, top_k=TOP_K
-            )
-            latency_ms = (time.perf_counter() - started) * 1_000
-            if any(
-                hit.project_id != project_id
-                or hit.manuscript_version_id != version_id
-                for hit in hits
-            ):
-                raise RuntimeError("Retrieval returned a chunk outside the book scope")
-            retrieved_ids = [hit.chunk_id for hit in hits]
-            relevant_ids = relevant_by_query[query["id"]]
-            relevant_ranks = [
-                retrieved_ids.index(chunk_id) + 1
-                for chunk_id in relevant_ids
-                if chunk_id in retrieved_ids
-            ]
-            rank = min(relevant_ranks) if relevant_ranks else None
-            results.append(
-                {
-                    "answer": query["answer"],
-                    "book": query["title"],
-                    "evidence": query["evidence"],
-                    "id": query["id"],
-                    "latency_ms": latency_ms,
-                    "query": query["query"],
-                    "rank": rank,
-                    "relevant_ids": relevant_ids,
-                    "retrieved_ids": retrieved_ids,
-                    "split": query["split"],
-                    "top_chunks": [
-                        {
-                            "contains_exact_evidence": query["evidence"] in hit.text,
-                            "preview": " ".join(hit.text.split())[:600],
-                            "rank": hit_rank,
-                            "score": hit.score,
-                        }
-                        for hit_rank, hit in enumerate(hits[:10], 1)
-                    ]
-                    if rank is None or rank > 10
-                    else [],
-                }
-            )
-    finally:
-        await delete_experiment_index()
 
+def report(
+    strategy: str,
+    results: list[dict],
+    dataset: dict,
+) -> dict:
     failures = [row for row in results if row["rank"] != 1]
     hard_test_failures = [
         row
@@ -201,25 +197,8 @@ async def run() -> dict:
         if row["split"] == "test" and (row["rank"] is None or row["rank"] > 10)
     ]
     return {
-        "strategy": "bm25",
-        "dataset": {
-            "id": "feyninc/gacha",
-            "revision": "076b8b186236941df371a8d9b14be4cb4c7498fb",
-            "corpus_config": "corpus",
-            "question_config": "questions",
-            "split": "train",
-            "book_count": len(books),
-            "chunk_count": sum(map(len, documents_by_book.values())),
-            "qrel_count": sum(map(len, relevant_by_query.values())),
-            "parser_version": PARSER_VERSION,
-            "tokenizer_version": TOKENIZER_VERSION,
-            "chunking": asdict(CHUNKING),
-            "queries_sha256": fixture_sha256("retrieval_queries.jsonl"),
-            "documents_sha256": fixture_sha256("retrieval_documents.jsonl"),
-            "chunks_sha256": value_sha256(documents_by_book),
-            "qrels_sha256": value_sha256(relevant_by_query),
-            "ground_truth": "all same-book StoryGuard chunks containing exact evidence",
-        },
+        "strategy": strategy,
+        "dataset": dataset,
         "candidate_top_k": TOP_K,
         "splits": {
             split: metrics([row for row in results if row["split"] == split])
@@ -253,5 +232,133 @@ async def run() -> dict:
     }
 
 
+async def run(strategy: str = "bm25") -> dict:
+    if strategy not in {"bm25", "vector", "compare"}:
+        raise ValueError("strategy must be bm25, vector, or compare")
+    books = load("retrieval_documents.jsonl")
+    queries = load("retrieval_queries.jsonl")
+    documents_by_book = {book["id"]: chunk_book(book) for book in books}
+    scopes = {book_id: scope(book_id) for book_id in documents_by_book}
+    relevant_by_query = {}
+    for query in queries:
+        relevant = [
+            document["chunk_id"]
+            for document in documents_by_book[query["book_id"]]
+            if query["evidence"] in document["text"]
+        ]
+        if not relevant:
+            raise ValueError(f"No StoryGuard chunk contains evidence for {query['id']}")
+        relevant_by_query[query["id"]] = relevant
+
+    dataset = {
+        "id": "feyninc/gacha",
+        "revision": "076b8b186236941df371a8d9b14be4cb4c7498fb",
+        "corpus_config": "corpus",
+        "question_config": "questions",
+        "split": "train",
+        "book_count": len(books),
+        "chunk_count": sum(map(len, documents_by_book.values())),
+        "qrel_count": sum(map(len, relevant_by_query.values())),
+        "parser_version": PARSER_VERSION,
+        "tokenizer_version": TOKENIZER_VERSION,
+        "chunking": asdict(CHUNKING),
+        "queries_sha256": fixture_sha256("retrieval_queries.jsonl"),
+        "documents_sha256": fixture_sha256("retrieval_documents.jsonl"),
+        "chunks_sha256": value_sha256(documents_by_book),
+        "qrels_sha256": value_sha256(relevant_by_query),
+        "ground_truth": "all same-book StoryGuard chunks containing exact evidence",
+    }
+    embedding_stats = None
+    if strategy in {"vector", "compare"}:
+        started = time.perf_counter()
+        await asyncio.to_thread(get_embedding_provider)
+        model_load_ms = (time.perf_counter() - started) * 1_000
+        documents = [
+            document
+            for book_documents in documents_by_book.values()
+            for document in book_documents
+        ]
+        started = time.perf_counter()
+        vectors = await asyncio.to_thread(
+            embed_documents, [str(document["text"]) for document in documents]
+        )
+        document_embedding_ms = (time.perf_counter() - started) * 1_000
+        for document, vector in zip(documents, vectors, strict=True):
+            document["embedding_version"] = EMBEDDING_VERSION
+            document["embedding"] = vector
+        embedding_stats = {
+            "provider": "sentence_transformers",
+            "version": EMBEDDING_VERSION,
+            "model_load_ms": model_load_ms,
+            "document_embedding_ms": document_embedding_ms,
+            "documents_per_second": len(documents) / (document_embedding_ms / 1_000),
+        }
+
+    await delete_experiment_index()
+    try:
+        for book_id, documents in documents_by_book.items():
+            project_id, version_id = scopes[book_id]
+            await replace_version_chunks(project_id, version_id, documents)
+        results_by_strategy = {}
+        if strategy in {"bm25", "compare"}:
+            results_by_strategy["bm25"] = await evaluate(
+                "bm25", queries, scopes, relevant_by_query
+            )
+        if strategy in {"vector", "compare"}:
+            get_embedding_provider.cache_clear()
+            gc.collect()
+            results_by_strategy["vector"] = await evaluate(
+                "vector", queries, scopes, relevant_by_query
+            )
+    finally:
+        await delete_experiment_index()
+
+    reports = {
+        name: report(name, results, dataset)
+        for name, results in results_by_strategy.items()
+    }
+    if "vector" in reports:
+        vector_results = results_by_strategy["vector"]
+        reports["vector"]["embedding"] = embedding_stats
+        reports["vector"]["cold_query_latency_ms"] = vector_results[0]["latency_ms"]
+        reports["vector"]["warm_median_latency_ms"] = statistics.median(
+            row["latency_ms"] for row in vector_results[1:]
+        )
+    if strategy != "compare":
+        return reports[strategy]
+
+    bm25_results = results_by_strategy["bm25"]
+    vector_results = results_by_strategy["vector"]
+    rank_changes = [
+        {
+            "book": bm25["book"],
+            "query": bm25["query"],
+            "bm25_rank": bm25["rank"],
+            "vector_rank": vector["rank"],
+        }
+        for bm25, vector in zip(bm25_results, vector_results, strict=True)
+        if bm25["rank"] != vector["rank"]
+    ]
+    return {
+        "baseline": reports["bm25"],
+        "candidate": reports["vector"],
+        "rank_change_count": len(rank_changes),
+        "rank_change_examples": rank_changes[:30],
+        "anne_diagnostic": next(
+            {
+                "query": bm25["query"],
+                "bm25_rank": bm25["rank"],
+                "vector_rank": vector["rank"],
+            }
+            for bm25, vector in zip(bm25_results, vector_results, strict=True)
+            if "correct spelling" in bm25["query"]
+        ),
+    }
+
+
 if __name__ == "__main__":
-    print(json.dumps(asyncio.run(run()), indent=2))
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--strategy", choices=("bm25", "vector", "compare"), default="bm25"
+    )
+    print(json.dumps(asyncio.run(run(parser.parse_args().strategy)), indent=2))

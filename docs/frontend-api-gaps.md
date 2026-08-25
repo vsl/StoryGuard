@@ -16,7 +16,7 @@ mock implementation.
 | Project detail | `GET /api/projects/{project_id}` | Project shell and settings load. |
 | Edit project | `PATCH /api/projects/{project_id}` | Title, description, and language settings work. |
 | Delete project | `DELETE /api/projects/{project_id}` | Confirmation and deletion work. |
-| Upload manuscript | `POST /api/projects/{project_id}/manuscripts` | Upload creates a version and queues real parsing/BM25 ingestion. |
+| Upload manuscript | `POST /api/projects/{project_id}/manuscripts` | Upload creates a version and queues real parsing plus BM25/vector indexing. |
 | Version history/detail | `GET /api/projects/{project_id}/manuscripts`, `GET /api/projects/{project_id}/manuscripts/{version_id}` | Version status and the actual current version are visible. |
 | Job progress | `GET /api/jobs/{job_id}` | Upload UI polls queued/running/completed/failed state and safe errors. |
 | Parsed chapters | `GET /api/projects/{project_id}/chapters`, `GET /api/projects/{project_id}/chapters/{chapter_id}` | Read-only chapter list and text use the project's current ready version. |

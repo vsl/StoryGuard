@@ -3,8 +3,9 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
+from app.ai.embeddings import EMBEDDING_VERSION, embed_documents
 from app.db.models.job_run import JobRun
 from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.narrative import Chapter, Chunk, Scene
@@ -137,7 +138,7 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             await session.flush()
 
             version.parse_metadata = parsed.metadata
-            job.stage = "indexing"
+            job.stage = "embedding"
     except Exception:
         await _mark_failed(
             job_id,
@@ -148,22 +149,45 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
 
     try:
         chapter_ordinals = {chapter.id: chapter.ordinal for chapter in chapters}
+        documents = [
+            {
+                "chunk_id": str(chunk.id),
+                "project_id": str(project_id),
+                "manuscript_version_id": str(version_id),
+                "chapter_id": str(chunk.chapter_id),
+                "chapter_ordinal": chapter_ordinals[chunk.chapter_id],
+                "scene_id": str(chunk.scene_id) if chunk.scene_id else None,
+                "text": chunk.text,
+                "content_hash": chunk.content_hash,
+            }
+            for chunk in chunks
+        ]
+        vectors = await asyncio.to_thread(
+            embed_documents, [str(document["text"]) for document in documents]
+        )
+        if len(vectors) != len(documents):
+            raise ValueError("Embedding count does not match chunk count")
+        for document, vector in zip(documents, vectors, strict=True):
+            document["embedding_version"] = EMBEDDING_VERSION
+            document["embedding"] = vector
+    except Exception:
+        await _mark_failed(
+            job_id,
+            "EMBEDDING_FAILED",
+            "The manuscript embeddings could not be created.",
+        )
+        raise
+
+    try:
+        async with SessionLocal() as session, session.begin():
+            job = await session.get(JobRun, job_id, with_for_update=True)
+            if job is None or job.manuscript_version_id != version_id:
+                raise ValueError("Job scope changed during embedding")
+            job.stage = "indexing"
         await replace_version_chunks(
             str(project_id),
             str(version_id),
-            [
-                {
-                    "chunk_id": str(chunk.id),
-                    "project_id": str(project_id),
-                    "manuscript_version_id": str(version_id),
-                    "chapter_id": str(chunk.chapter_id),
-                    "chapter_ordinal": chapter_ordinals[chunk.chapter_id],
-                    "scene_id": str(chunk.scene_id) if chunk.scene_id else None,
-                    "text": chunk.text,
-                    "content_hash": chunk.content_hash,
-                }
-                for chunk in chunks
-            ],
+            documents,
         )
         async with SessionLocal() as session, session.begin():
             job = await session.get(JobRun, job_id, with_for_update=True)
@@ -177,8 +201,13 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
                 or version.project_id != job.project_id
             ):
                 raise ValueError("Job scope changed during indexing")
+            await session.execute(
+                update(Chunk)
+                .where(Chunk.manuscript_version_id == version.id)
+                .values(embedding_version=EMBEDDING_VERSION)
+            )
             job.status = "completed"
-            job.stage = "bm25_indexed"
+            job.stage = "vector_indexed"
             job.completed_units = job.total_units = len(chapters)
             job.completed_at = datetime.now(timezone.utc)
             version.status = "ready"

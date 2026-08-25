@@ -29,7 +29,7 @@ Browser API calls stay same-origin. Next.js proxies `/api/*` to
 and backend credentials are never sent to the browser.
 
 The backend implements project CRUD plus the real manuscript upload, version,
-job progress, parsing/BM25 ingestion, and chapter-reading vertical slice. Later
+job progress, parsing/BM25/vector ingestion, and chapter-reading vertical slice. Later
 UI capabilities whose endpoints do not exist show an explicit unavailable
 state. See `docs/frontend-api-gaps.md`.
 

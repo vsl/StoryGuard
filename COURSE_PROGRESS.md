@@ -19,10 +19,11 @@ completed_lessons:
   - "2.2 Parsing / chapter / scene / chunking"
   - "3.1 BM25 baseline"
   - "3.1A Application API/UI integration catch-up"
+  - "3.2 Embeddings + vector retrieval"
 
 current_lesson:
-  id: "3.2"
-  title: "Embeddings + vector retrieval"
+  id: "3.3"
+  title: "Hybrid retrieval with RRF"
   status: "not_started"
 
 current_lesson_state:
