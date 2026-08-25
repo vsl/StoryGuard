@@ -2,7 +2,7 @@ import asyncio
 import json
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import httpx
 
@@ -14,6 +14,8 @@ from app.ai.embeddings import (
 
 
 INDEX_NAME = os.environ.get("STORYGUARD_CHUNK_INDEX", "storyguard-chunks-v2")
+RRF_RANK_CONSTANT = 60
+RRF_RANK_WINDOW = 30
 INDEX_MAPPING = {
     "mappings": {
         "dynamic": "strict",
@@ -227,3 +229,39 @@ async def retrieve_vector(
         for hit in response.json()["hits"]["hits"]
     ]
     return sorted(results, key=lambda result: (-result.score, result.chunk_id))
+
+
+async def retrieve_hybrid(
+    query: str,
+    project_id: str,
+    manuscript_version_id: str,
+    top_k: int = RRF_RANK_WINDOW,
+    *,
+    rank_constant: int = RRF_RANK_CONSTANT,
+    rank_window: int = RRF_RANK_WINDOW,
+) -> list[RetrievedChunk]:
+    if not 1 <= rank_window <= 100:
+        raise ValueError("rank_window must be between 1 and 100")
+    if not 1 <= top_k <= rank_window:
+        raise ValueError("top_k must be between 1 and rank_window")
+    if rank_constant < 0:
+        raise ValueError("rank_constant must not be negative")
+
+    rankings = await asyncio.gather(
+        retrieve_bm25(query, project_id, manuscript_version_id, rank_window),
+        retrieve_vector(query, project_id, manuscript_version_id, rank_window),
+    )
+    chunks: dict[str, RetrievedChunk] = {}
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, chunk in enumerate(ranking, 1):
+            chunks.setdefault(chunk.chunk_id, chunk)
+            scores[chunk.chunk_id] = scores.get(chunk.chunk_id, 0) + 1 / (
+                rank_constant + rank
+            )
+
+    chunk_ids = sorted(scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id))
+    return [
+        replace(chunks[chunk_id], score=scores[chunk_id])
+        for chunk_id in chunk_ids[:top_k]
+    ]

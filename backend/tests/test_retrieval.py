@@ -10,7 +10,13 @@ from app.ai.embeddings import (
     EMBEDDING_VERSION,
     LocalEmbeddingProvider,
 )
-from app.ai.retrieval import replace_version_chunks, retrieve_bm25, retrieve_vector
+from app.ai.retrieval import (
+    RetrievedChunk,
+    replace_version_chunks,
+    retrieve_bm25,
+    retrieve_hybrid,
+    retrieve_vector,
+)
 
 
 def response(payload: dict, status: int = 200) -> httpx.Response:
@@ -48,6 +54,20 @@ def embedded_document(
         embedding=vector(first),
     )
     return result
+
+
+def retrieved(chunk_id: str) -> RetrievedChunk:
+    return RetrievedChunk(
+        chunk_id=chunk_id,
+        project_id="project",
+        manuscript_version_id="version",
+        chapter_id="chapter",
+        chapter_ordinal=1,
+        scene_id=None,
+        text=chunk_id,
+        content_hash=chunk_id,
+        score=1,
+    )
 
 
 class FakeEmbeddingModel:
@@ -124,6 +144,32 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
             ],
         )
         self.assertEqual(results[0].chunk_id, source["chunk_id"])
+
+    async def test_hybrid_fuses_unique_chunks_by_rank(self) -> None:
+        with (
+            patch(
+                "app.ai.retrieval.retrieve_bm25",
+                new=AsyncMock(return_value=[retrieved("a"), retrieved("shared")]),
+            ) as bm25,
+            patch(
+                "app.ai.retrieval.retrieve_vector",
+                new=AsyncMock(return_value=[retrieved("b"), retrieved("shared")]),
+            ) as vector_search,
+        ):
+            results = await retrieve_hybrid(
+                "query", "project", "version", 3, rank_constant=60, rank_window=3
+            )
+
+        bm25.assert_awaited_once_with("query", "project", "version", 3)
+        vector_search.assert_awaited_once_with("query", "project", "version", 3)
+        self.assertEqual(
+            [result.chunk_id for result in results], ["shared", "a", "b"]
+        )
+        self.assertAlmostEqual(results[0].score, 2 / 62)
+        self.assertEqual(results[1].score, results[2].score)
+
+        with self.assertRaisesRegex(ValueError, "rank_window"):
+            await retrieve_hybrid("query", "project", "version", 3, rank_window=2)
 
     async def test_inputs_and_index_documents_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "must not be empty"):
@@ -210,6 +256,12 @@ class ElasticsearchIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 "semantic Zephyra", self.project_a, self.current_version
             )
         self.assertEqual([hit.chunk_id for hit in vector_hits], [current["chunk_id"]])
+
+        with patch("app.ai.retrieval.embed_query", return_value=vector()):
+            hybrid_hits = await retrieve_hybrid(
+                "Zephyra", self.project_a, self.current_version
+            )
+        self.assertEqual([hit.chunk_id for hit in hybrid_hits], [current["chunk_id"]])
 
         replacement = embedded_document(
             self.project_a, self.current_version, "BMW replacement"

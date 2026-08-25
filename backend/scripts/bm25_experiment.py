@@ -21,9 +21,12 @@ from app.ai.embeddings import (
 )
 from app.ai.retrieval import (
     INDEX_NAME,
+    RRF_RANK_CONSTANT,
+    RRF_RANK_WINDOW,
     _request,
     replace_version_chunks,
     retrieve_bm25,
+    retrieve_hybrid,
     retrieve_vector,
 )
 from app.parsing import (
@@ -136,7 +139,11 @@ async def evaluate(
     scopes: dict[str, tuple[str, str]],
     relevant_by_query: dict[str, list[str]],
 ) -> list[dict]:
-    retrieve = retrieve_bm25 if strategy == "bm25" else retrieve_vector
+    retrieve = {
+        "bm25": retrieve_bm25,
+        "vector": retrieve_vector,
+        "hybrid": retrieve_hybrid,
+    }[strategy]
     results = []
     for query in queries:
         project_id, version_id = scopes[query["book_id"]]
@@ -233,8 +240,8 @@ def report(
 
 
 async def run(strategy: str = "bm25") -> dict:
-    if strategy not in {"bm25", "vector", "compare"}:
-        raise ValueError("strategy must be bm25, vector, or compare")
+    if strategy not in {"bm25", "vector", "hybrid", "compare"}:
+        raise ValueError("strategy must be bm25, vector, hybrid, or compare")
     books = load("retrieval_documents.jsonl")
     queries = load("retrieval_queries.jsonl")
     documents_by_book = {book["id"]: chunk_book(book) for book in books}
@@ -269,7 +276,7 @@ async def run(strategy: str = "bm25") -> dict:
         "ground_truth": "all same-book StoryGuard chunks containing exact evidence",
     }
     embedding_stats = None
-    if strategy in {"vector", "compare"}:
+    if strategy in {"vector", "hybrid", "compare"}:
         started = time.perf_counter()
         await asyncio.to_thread(get_embedding_provider)
         model_load_ms = (time.perf_counter() - started) * 1_000
@@ -310,6 +317,10 @@ async def run(strategy: str = "bm25") -> dict:
             results_by_strategy["vector"] = await evaluate(
                 "vector", queries, scopes, relevant_by_query
             )
+        if strategy in {"hybrid", "compare"}:
+            results_by_strategy["hybrid"] = await evaluate(
+                "hybrid", queries, scopes, relevant_by_query
+            )
     finally:
         await delete_experiment_index()
 
@@ -324,34 +335,75 @@ async def run(strategy: str = "bm25") -> dict:
         reports["vector"]["warm_median_latency_ms"] = statistics.median(
             row["latency_ms"] for row in vector_results[1:]
         )
+    if "hybrid" in reports:
+        reports["hybrid"]["rrf"] = {
+            "rank_constant": RRF_RANK_CONSTANT,
+            "rank_window": RRF_RANK_WINDOW,
+        }
+        reports["hybrid"]["embedding"] = embedding_stats
     if strategy != "compare":
         return reports[strategy]
 
-    bm25_results = results_by_strategy["bm25"]
-    vector_results = results_by_strategy["vector"]
-    rank_changes = [
+    results = [
         {
             "book": bm25["book"],
             "query": bm25["query"],
             "bm25_rank": bm25["rank"],
             "vector_rank": vector["rank"],
+            "hybrid_rank": hybrid["rank"],
         }
-        for bm25, vector in zip(bm25_results, vector_results, strict=True)
-        if bm25["rank"] != vector["rank"]
+        for bm25, vector, hybrid in zip(
+            results_by_strategy["bm25"],
+            results_by_strategy["vector"],
+            results_by_strategy["hybrid"],
+            strict=True,
+        )
+    ]
+    summaries = {
+        name: {
+            "strategy": strategy_report["strategy"],
+            "splits": strategy_report["splits"],
+            "all": strategy_report["all"],
+            "non_rank_1_query_count": strategy_report["non_rank_1_query_count"],
+            **(
+                {
+                    "cold_query_latency_ms": strategy_report[
+                        "cold_query_latency_ms"
+                    ],
+                    "warm_median_latency_ms": strategy_report[
+                        "warm_median_latency_ms"
+                    ],
+                }
+                if name == "vector"
+                else {}
+            ),
+        }
+        for name, strategy_report in reports.items()
+    }
+    improvements = [
+        row
+        for row in results
+        if (row["hybrid_rank"] or TOP_K + 1) < (row["bm25_rank"] or TOP_K + 1)
+    ]
+    regressions = [
+        row
+        for row in results
+        if (row["hybrid_rank"] or TOP_K + 1) > (row["bm25_rank"] or TOP_K + 1)
     ]
     return {
-        "baseline": reports["bm25"],
-        "candidate": reports["vector"],
-        "rank_change_count": len(rank_changes),
-        "rank_change_examples": rank_changes[:30],
+        "dataset": dataset,
+        "embedding": embedding_stats,
+        "rrf": reports["hybrid"]["rrf"],
+        "strategies": summaries,
+        "hybrid_rank_change_count": sum(
+            row["bm25_rank"] != row["hybrid_rank"] for row in results
+        ),
+        "hybrid_improvement_count": len(improvements),
+        "hybrid_improvement_examples": improvements[:10],
+        "hybrid_regression_count": len(regressions),
+        "hybrid_regression_examples": regressions[:10],
         "anne_diagnostic": next(
-            {
-                "query": bm25["query"],
-                "bm25_rank": bm25["rank"],
-                "vector_rank": vector["rank"],
-            }
-            for bm25, vector in zip(bm25_results, vector_results, strict=True)
-            if "correct spelling" in bm25["query"]
+            row for row in results if "correct spelling" in row["query"]
         ),
     }
 
@@ -359,6 +411,8 @@ async def run(strategy: str = "bm25") -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--strategy", choices=("bm25", "vector", "compare"), default="bm25"
+        "--strategy",
+        choices=("bm25", "vector", "hybrid", "compare"),
+        default="bm25",
     )
     print(json.dumps(asyncio.run(run(parser.parse_args().strategy)), indent=2))
