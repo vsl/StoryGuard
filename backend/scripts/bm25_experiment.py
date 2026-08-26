@@ -3,24 +3,25 @@ import asyncio
 import gc
 import hashlib
 import json
-import os
 import statistics
 import time
 import uuid
 from dataclasses import asdict
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 import httpx
 
-os.environ["STORYGUARD_CHUNK_INDEX"] = "storyguard-chunks-gacha-eval-v2"
-
+from app.ai import retrieval
 from app.ai.embeddings import (
+    EMBEDDING_DIMENSION,
+    EMBEDDING_REPOSITORY,
+    EMBEDDING_REVISION,
     EMBEDDING_VERSION,
     embed_documents,
     get_embedding_provider,
 )
 from app.ai.retrieval import (
-    INDEX_NAME,
     RRF_RANK_CONSTANT,
     RRF_RANK_WINDOW,
     _request,
@@ -40,13 +41,18 @@ from app.parsing import (
 ROOT = Path(__file__).parents[2]
 TOP_K = 30
 CHUNKING = ChunkingConfig()
+# ponytail: immutable indexes accumulate; add retention when disk usage matters.
+EXPERIMENT_INDEX_PREFIX = "storyguard-chunks-gacha-eval-"
 
 
 async def delete_experiment_index() -> None:
-    if INDEX_NAME != "storyguard-chunks-gacha-eval-v2":
+    fingerprint = retrieval.INDEX_NAME.removeprefix(EXPERIMENT_INDEX_PREFIX)
+    if len(fingerprint) != 64 or any(
+        character not in "0123456789abcdef" for character in fingerprint
+    ):
         raise RuntimeError("Refusing to delete a non-experiment index")
     try:
-        await _request("DELETE", f"/{INDEX_NAME}")
+        await _request("DELETE", f"/{retrieval.INDEX_NAME}")
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code != 404:
             raise
@@ -67,6 +73,59 @@ def value_sha256(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def experiment_fingerprint(
+    chunks_sha256: str,
+    elasticsearch_version: str,
+    include_embeddings: bool,
+) -> str:
+    return value_sha256(
+        {
+            "chunks_sha256": chunks_sha256,
+            "parser_version": PARSER_VERSION,
+            "tokenizer_version": TOKENIZER_VERSION,
+            "chunking": asdict(CHUNKING),
+            "elasticsearch_version": elasticsearch_version,
+            "index_mapping": retrieval.INDEX_MAPPING,
+            "mode": "vector" if include_embeddings else "lexical",
+            "embedding": {
+                "repository": EMBEDDING_REPOSITORY,
+                "revision": EMBEDDING_REVISION,
+                "version": EMBEDDING_VERSION,
+                "dimension": EMBEDDING_DIMENSION,
+                "document_encoder": "encode_document",
+                "normalize_embeddings": True,
+                "sentence_transformers": package_version(
+                    "sentence-transformers"
+                ),
+                "torch": package_version("torch"),
+            }
+            if include_embeddings
+            else None,
+        }
+    )
+
+
+async def experiment_index_complete(
+    expected_count: int, require_embeddings: bool
+) -> bool:
+    try:
+        response = await _request("GET", f"/{retrieval.INDEX_NAME}/_count")
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            return False
+        raise
+    if response.json()["count"] != expected_count:
+        return False
+    if not require_embeddings:
+        return True
+    response = await _request(
+        "POST",
+        f"/{retrieval.INDEX_NAME}/_count",
+        json={"query": {"term": {"embedding_version": EMBEDDING_VERSION}}},
+    )
+    return response.json()["count"] == expected_count
 
 
 def scope(book_id: str) -> tuple[str, str]:
@@ -245,6 +304,11 @@ async def run(strategy: str = "bm25") -> dict:
     books = load("retrieval_documents.jsonl")
     queries = load("retrieval_queries.jsonl")
     documents_by_book = {book["id"]: chunk_book(book) for book in books}
+    all_documents = [
+        document
+        for book_documents in documents_by_book.values()
+        for document in book_documents
+    ]
     scopes = {book_id: scope(book_id) for book_id in documents_by_book}
     relevant_by_query = {}
     for query in queries:
@@ -275,59 +339,87 @@ async def run(strategy: str = "bm25") -> dict:
         "qrels_sha256": value_sha256(relevant_by_query),
         "ground_truth": "all same-book StoryGuard chunks containing exact evidence",
     }
-    embedding_stats = None
-    if strategy in {"vector", "hybrid", "compare"}:
+    require_embeddings = strategy in {"vector", "hybrid", "compare"}
+    elasticsearch = await _request("GET", "/")
+    elasticsearch_version = str(elasticsearch.json()["version"]["number"])
+    fingerprint = experiment_fingerprint(
+        str(dataset["chunks_sha256"]), elasticsearch_version, require_embeddings
+    )
+    retrieval.INDEX_NAME = EXPERIMENT_INDEX_PREFIX + fingerprint
+    cache_hit = await experiment_index_complete(
+        len(all_documents), require_embeddings
+    )
+
+    model_load_ms = document_embedding_ms = documents_per_second = None
+    index_build_ms = None
+    if not cache_hit:
+        await delete_experiment_index()
+    if require_embeddings and not cache_hit:
         started = time.perf_counter()
         await asyncio.to_thread(get_embedding_provider)
         model_load_ms = (time.perf_counter() - started) * 1_000
-        documents = [
-            document
-            for book_documents in documents_by_book.values()
-            for document in book_documents
-        ]
         started = time.perf_counter()
         vectors = await asyncio.to_thread(
-            embed_documents, [str(document["text"]) for document in documents]
+            embed_documents,
+            [str(document["text"]) for document in all_documents],
         )
         document_embedding_ms = (time.perf_counter() - started) * 1_000
-        for document, vector in zip(documents, vectors, strict=True):
+        for document, vector in zip(all_documents, vectors, strict=True):
             document["embedding_version"] = EMBEDDING_VERSION
             document["embedding"] = vector
-        embedding_stats = {
-            "provider": "sentence_transformers",
-            "version": EMBEDDING_VERSION,
-            "model_load_ms": model_load_ms,
-            "document_embedding_ms": document_embedding_ms,
-            "documents_per_second": len(documents) / (document_embedding_ms / 1_000),
-        }
+        documents_per_second = len(all_documents) / (
+            document_embedding_ms / 1_000
+        )
 
-    await delete_experiment_index()
-    try:
-        for book_id, documents in documents_by_book.items():
+    if not cache_hit:
+        started = time.perf_counter()
+        for book_id, book_documents in documents_by_book.items():
             project_id, version_id = scopes[book_id]
-            await replace_version_chunks(project_id, version_id, documents)
-        results_by_strategy = {}
-        if strategy in {"bm25", "compare"}:
-            results_by_strategy["bm25"] = await evaluate(
-                "bm25", queries, scopes, relevant_by_query
-            )
-        if strategy in {"vector", "compare"}:
-            get_embedding_provider.cache_clear()
-            gc.collect()
-            results_by_strategy["vector"] = await evaluate(
-                "vector", queries, scopes, relevant_by_query
-            )
-        if strategy in {"hybrid", "compare"}:
-            results_by_strategy["hybrid"] = await evaluate(
-                "hybrid", queries, scopes, relevant_by_query
-            )
-    finally:
-        await delete_experiment_index()
+            await replace_version_chunks(project_id, version_id, book_documents)
+        index_build_ms = (time.perf_counter() - started) * 1_000
+        if not await experiment_index_complete(
+            len(all_documents), require_embeddings
+        ):
+            raise RuntimeError("Experiment index is incomplete after build")
+
+    cache_stats = {
+        "document_cache_hit": cache_hit,
+        "experiment_index": retrieval.INDEX_NAME,
+        "fingerprint": fingerprint,
+        "elasticsearch_version": elasticsearch_version,
+        "document_embedding_ms": document_embedding_ms,
+        "index_build_ms": index_build_ms,
+    }
+    embedding_stats = {
+        "provider": "sentence_transformers",
+        "version": EMBEDDING_VERSION,
+        "model_load_ms": model_load_ms,
+        "documents_per_second": documents_per_second,
+    }
+
+    if require_embeddings:
+        get_embedding_provider.cache_clear()
+        gc.collect()
+    results_by_strategy = {}
+    if strategy in {"bm25", "compare"}:
+        results_by_strategy["bm25"] = await evaluate(
+            "bm25", queries, scopes, relevant_by_query
+        )
+    if strategy in {"vector", "compare"}:
+        results_by_strategy["vector"] = await evaluate(
+            "vector", queries, scopes, relevant_by_query
+        )
+    if strategy in {"hybrid", "compare"}:
+        results_by_strategy["hybrid"] = await evaluate(
+            "hybrid", queries, scopes, relevant_by_query
+        )
 
     reports = {
         name: report(name, results, dataset)
         for name, results in results_by_strategy.items()
     }
+    for strategy_report in reports.values():
+        strategy_report["document_cache"] = cache_stats
     if "vector" in reports:
         vector_results = results_by_strategy["vector"]
         reports["vector"]["embedding"] = embedding_stats
@@ -392,6 +484,7 @@ async def run(strategy: str = "bm25") -> dict:
     ]
     return {
         "dataset": dataset,
+        "document_cache": cache_stats,
         "embedding": embedding_stats,
         "rrf": reports["hybrid"]["rrf"],
         "strategies": summaries,

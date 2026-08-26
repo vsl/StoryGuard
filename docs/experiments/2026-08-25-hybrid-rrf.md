@@ -47,7 +47,7 @@ qrels:     27a9512e8e90284b5b4c25613d87fc6308b4a690fa3c2d6f555032b209a619bf
 ```
 
 BM25, vector, and hybrid used the same corpus, queries, qrels, scopes, query
-order, document embeddings, and disposable Elasticsearch index.
+order, document embeddings, and Elasticsearch index.
 
 ## Quality metrics
 
@@ -127,7 +127,7 @@ relevance guarantee.
 
 ## Reliability, security, and observability
 
-- 25 backend tests passed against live PostgreSQL and Elasticsearch;
+- 27 backend tests passed against live PostgreSQL and Elasticsearch;
 - hybrid uses the existing project, manuscript-version, and embedding-version
   filters inside its retrieval branches;
 - branch results are deduplicated and ties are deterministic;
@@ -136,6 +136,44 @@ relevance guarantee.
 - no fallback was invoked or implemented in this lesson;
 - no paid API calls occurred;
 - no LangSmith trace IDs exist because the experiment made no LLM calls.
+
+## Experiment document cache validation
+
+After the promotion decision, the benchmark harness was changed to retain an
+immutable Elasticsearch experiment index keyed by the inputs that affect
+document retrieval:
+
+```text
+chunks/parser/tokenizer/chunking
++ embedding repository/revision/version/dimension/encoding
++ Sentence Transformers and Torch versions
++ Elasticsearch mapping/version
+-> SHA-256 experiment index fingerprint
+```
+
+The first validation run created:
+
+```text
+fingerprint: bf24c527ec68796dc334be234a0e61c327176037d791f49ae2c11ac613872ea7
+document_cache_hit: false
+document_embedding_ms: 998,467.66
+index_build_ms: 10,383.56
+```
+
+The immediate repeat used the same index and reported:
+
+```text
+document_cache_hit: true
+document_embedding_ms: null
+index_build_ms: null
+```
+
+Every quality metric, first-relevant rank, improvement/regression count, and
+Anne diagnostic was identical between the miss and hit runs. Query embeddings
+remain uncached, so query latency continues to include real query encoding.
+Incomplete indexes fail the count and embedding-version checks and are rebuilt.
+Old fingerprinted experiment indexes require manual cleanup only if their disk
+use becomes meaningful.
 
 ## Developer conclusion
 

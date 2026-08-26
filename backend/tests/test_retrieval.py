@@ -17,6 +17,7 @@ from app.ai.retrieval import (
     retrieve_hybrid,
     retrieve_vector,
 )
+from scripts import bm25_experiment
 
 
 def response(payload: dict, status: int = 200) -> httpx.Response:
@@ -79,6 +80,54 @@ class FakeEmbeddingModel:
 
 
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
+    def test_experiment_fingerprint_tracks_retrieval_inputs(self) -> None:
+        fingerprint = bm25_experiment.experiment_fingerprint(
+            "a" * 64, "8.19.19", True
+        )
+        self.assertEqual(
+            fingerprint,
+            bm25_experiment.experiment_fingerprint(
+                "a" * 64, "8.19.19", True
+            ),
+        )
+        self.assertNotEqual(
+            fingerprint,
+            bm25_experiment.experiment_fingerprint(
+                "b" * 64, "8.19.19", True
+            ),
+        )
+        self.assertNotEqual(
+            fingerprint,
+            bm25_experiment.experiment_fingerprint(
+                "a" * 64, "8.19.19", False
+            ),
+        )
+        with patch.object(bm25_experiment, "EMBEDDING_VERSION", "changed"):
+            self.assertNotEqual(
+                fingerprint,
+                bm25_experiment.experiment_fingerprint(
+                    "a" * 64, "8.19.19", True
+                ),
+            )
+
+    async def test_experiment_cache_requires_all_embeddings(self) -> None:
+        with patch.object(
+            bm25_experiment,
+            "_request",
+            new=AsyncMock(side_effect=[response({"count": 2}), response({"count": 2})]),
+        ):
+            self.assertTrue(
+                await bm25_experiment.experiment_index_complete(2, True)
+            )
+        with patch.object(
+            bm25_experiment,
+            "_request",
+            new=AsyncMock(side_effect=[response({"count": 2}), response({"count": 1})]),
+        ):
+            self.assertFalse(
+                await bm25_experiment.experiment_index_complete(2, True)
+            )
+
     def test_local_provider_uses_query_and_document_encoders(self) -> None:
         provider = LocalEmbeddingProvider(FakeEmbeddingModel())
         self.assertEqual(len(provider.embed_query("car")), EMBEDDING_DIMENSION)
