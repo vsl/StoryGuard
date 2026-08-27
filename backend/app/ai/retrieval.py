@@ -16,6 +16,7 @@ from app.ai.embeddings import (
 INDEX_NAME = os.environ.get("STORYGUARD_CHUNK_INDEX", "storyguard-chunks-v2")
 RRF_RANK_CONSTANT = 60
 RRF_RANK_WINDOW = 30
+RERANKER_CANDIDATES = 30
 INDEX_MAPPING = {
     "mappings": {
         "dynamic": "strict",
@@ -265,3 +266,23 @@ async def retrieve_hybrid(
         replace(chunks[chunk_id], score=scores[chunk_id])
         for chunk_id in chunk_ids[:top_k]
     ]
+
+
+async def retrieve_hybrid_reranked(
+    query: str,
+    project_id: str,
+    manuscript_version_id: str,
+    top_k: int = RERANKER_CANDIDATES,
+) -> list[RetrievedChunk]:
+    if not 1 <= top_k <= RERANKER_CANDIDATES:
+        raise ValueError(f"top_k must be between 1 and {RERANKER_CANDIDATES}")
+
+    candidates = await retrieve_hybrid(
+        query,
+        project_id,
+        manuscript_version_id,
+        top_k=RERANKER_CANDIDATES,
+    )
+    from app.ai.reranking import rerank
+
+    return await asyncio.to_thread(rerank, query, candidates, top_k)

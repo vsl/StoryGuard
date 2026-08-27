@@ -10,11 +10,14 @@ from app.ai.embeddings import (
     EMBEDDING_VERSION,
     LocalEmbeddingProvider,
 )
+from app.ai.reranking import LocalCrossEncoderReranker
 from app.ai.retrieval import (
+    RERANKER_CANDIDATES,
     RetrievedChunk,
     replace_version_chunks,
     retrieve_bm25,
     retrieve_hybrid,
+    retrieve_hybrid_reranked,
     retrieve_vector,
 )
 from scripts import bm25_experiment
@@ -79,7 +82,80 @@ class FakeEmbeddingModel:
         return vector()
 
 
+class FakeRerankerModel:
+    def __init__(self, scores) -> None:
+        self.scores = scores
+        self.inputs = None
+
+    def predict(self, inputs, **_kwargs):
+        self.inputs = inputs
+        return self.scores
+
+
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
+    def test_experiment_queries_are_deterministically_sharded(self) -> None:
+        queries = [
+            {"id": str(index), "split": "test" if index < 5 else "dev"}
+            for index in range(7)
+        ]
+        shards = [
+            bm25_experiment.select_queries(queries, "test", index, 2)
+            for index in range(2)
+        ]
+        self.assertEqual(
+            [[query["id"] for query in shard] for shard in shards],
+            [["0", "2", "4"], ["1", "3"]],
+        )
+        with self.assertRaisesRegex(ValueError, "shard_index"):
+            bm25_experiment.select_queries(queries, None, 2, 2)
+
+    def test_reranker_shards_aggregate_exact_rows(self) -> None:
+        first_candidates = ["b", "a", *[f"x-{index}" for index in range(28)]]
+        second_candidates = ["c", "d", *[f"y-{index}" for index in range(28)]]
+        rows = [
+            {
+                "id": "improvement",
+                "book": "Book",
+                "query": "first",
+                "relevant_ids": ["a"],
+                "candidate_ids": first_candidates,
+                "reranked_ids": ["a", "b", *first_candidates[2:]],
+                "reranker_scores": list(range(30, 0, -1)),
+                "baseline_rank": 2,
+                "reranker_rank": 1,
+                "retrieval_latency_ms": 10,
+                "reranking_latency_ms": 90,
+                "total_latency_ms": 100,
+            },
+            {
+                "id": "regression",
+                "book": "Book",
+                "query": "second",
+                "relevant_ids": ["c"],
+                "candidate_ids": second_candidates,
+                "reranked_ids": ["d", "c", *second_candidates[2:]],
+                "reranker_scores": list(range(30, 0, -1)),
+                "baseline_rank": 1,
+                "reranker_rank": 2,
+                "retrieval_latency_ms": 20,
+                "reranking_latency_ms": 80,
+                "total_latency_ms": 100,
+            },
+        ]
+
+        aggregate = bm25_experiment.aggregate_rows(rows)
+
+        self.assertEqual(aggregate["query_count"], 2)
+        self.assertEqual(aggregate["improvement_count"], 1)
+        self.assertEqual(aggregate["regression_count"], 1)
+        self.assertEqual(
+            aggregate["strategies"]["hybrid"]["recall_at_30"],
+            aggregate["strategies"]["hybrid_reranker"]["recall_at_30"],
+        )
+        self.assertEqual(
+            aggregate["strategies"]["hybrid"]["mrr_at_10"], 0.75
+        )
+
     def test_experiment_fingerprint_tracks_retrieval_inputs(self) -> None:
         fingerprint = bm25_experiment.experiment_fingerprint(
             "a" * 64, "8.19.19", True
@@ -109,6 +185,24 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
                     "a" * 64, "8.19.19", True
                 ),
             )
+
+    def test_reranker_cache_is_versioned_after_candidates(self) -> None:
+        candidate_fingerprint = "a" * 64
+        manifest = bm25_experiment.reranker_manifest(candidate_fingerprint)
+
+        with patch.object(bm25_experiment, "RERANKER_REVISION", "changed"):
+            changed = bm25_experiment.reranker_manifest(candidate_fingerprint)
+
+        self.assertEqual(
+            manifest["candidate_fingerprint"], candidate_fingerprint
+        )
+        self.assertEqual(
+            changed["candidate_fingerprint"], candidate_fingerprint
+        )
+        self.assertNotEqual(
+            bm25_experiment.value_sha256(manifest),
+            bm25_experiment.value_sha256(changed),
+        )
 
     async def test_experiment_cache_requires_all_embeddings(self) -> None:
         with patch.object(
@@ -219,6 +313,45 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(ValueError, "rank_window"):
             await retrieve_hybrid("query", "project", "version", 3, rank_window=2)
+
+    def test_cross_encoder_reranks_candidates_with_stable_ties(self) -> None:
+        model = FakeRerankerModel([0.1, 0.9, 0.9])
+        reranker = LocalCrossEncoderReranker(model)
+        candidates = [retrieved(chunk_id) for chunk_id in ("c", "b", "a")]
+
+        results = reranker.rerank(" query ", candidates, 2)
+
+        self.assertEqual(
+            model.inputs, [("query", "c"), ("query", "b"), ("query", "a")]
+        )
+        self.assertEqual([result.chunk_id for result in results], ["a", "b"])
+        self.assertEqual([result.score for result in results], [0.9, 0.9])
+        self.assertEqual(results[0].project_id, "project")
+
+        with self.assertRaisesRegex(ValueError, "one finite score"):
+            LocalCrossEncoderReranker(FakeRerankerModel([float("nan")])).rerank(
+                "query", candidates, 2
+            )
+
+    async def test_hybrid_reranker_uses_bounded_candidate_pool(self) -> None:
+        candidates = [retrieved(chunk_id) for chunk_id in ("a", "b", "c")]
+        selected = candidates[:2]
+        with (
+            patch(
+                "app.ai.retrieval.retrieve_hybrid",
+                new=AsyncMock(return_value=candidates),
+            ) as hybrid,
+            patch("app.ai.reranking.rerank", return_value=selected) as rerank,
+        ):
+            results = await retrieve_hybrid_reranked(
+                "query", "project", "version", top_k=2
+            )
+
+        hybrid.assert_awaited_once_with(
+            "query", "project", "version", top_k=RERANKER_CANDIDATES
+        )
+        rerank.assert_called_once_with("query", candidates, 2)
+        self.assertEqual(results, selected)
 
     async def test_inputs_and_index_documents_fail_closed(self) -> None:
         with self.assertRaisesRegex(ValueError, "must not be empty"):

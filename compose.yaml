@@ -32,9 +32,13 @@ services:
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-storyguard-local}
       HF_HOME: /models
       HF_TOKEN: ${HF_TOKEN:-}
+      PYTHONPATH: /app
       STORYGUARD_MODELS_CONFIG: /app/config/models.yaml
+      STORYGUARD_LOCAL_DIR: /local
     volumes:
-      - model_cache:/models
+      - ./.local/hf-cache:/models
+      - ./.local:/local
+      - ./data:/data:ro
       - ./config/models.yaml:/app/config/models.yaml:ro
     ports:
       - "8000:8000"
@@ -73,7 +77,7 @@ services:
       HF_TOKEN: ${HF_TOKEN:-}
       STORYGUARD_MODELS_CONFIG: /app/config/models.yaml
     volumes:
-      - model_cache:/models
+      - ./.local/hf-cache:/models
       - ./config/models.yaml:/app/config/models.yaml:ro
     depends_on:
       backend:
@@ -163,4 +167,3 @@ volumes:
   postgres_data:
   minio_data:
   elasticsearch_data:
-  model_cache:

@@ -9,12 +9,12 @@ import yaml
 DEFAULT_CONFIG = Path(__file__).parents[3] / "config" / "models.yaml"
 
 
-def _config() -> dict[str, object]:
+def local_model_config(kind: str) -> dict[str, object]:
     path = Path(os.environ.get("STORYGUARD_MODELS_CONFIG", DEFAULT_CONFIG))
-    return yaml.safe_load(path.read_text())["models"]["embeddings"]["local_default"]
+    return yaml.safe_load(path.read_text())["models"][kind]["local_default"]
 
 
-MODEL_CONFIG = _config()
+MODEL_CONFIG = local_model_config("embeddings")
 EMBEDDING_REPOSITORY = str(MODEL_CONFIG["hf_repository"])
 EMBEDDING_REVISION = str(MODEL_CONFIG["revision"])
 EMBEDDING_VERSION = str(MODEL_CONFIG["version"])
