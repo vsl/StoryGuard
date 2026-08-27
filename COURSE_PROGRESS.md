@@ -21,10 +21,11 @@ completed_lessons:
   - "3.1A Application API/UI integration catch-up"
   - "3.2 Embeddings + vector retrieval"
   - "3.3 Hybrid retrieval with RRF"
+  - "3.4 Cross-encoder reranking"
 
 current_lesson:
-  id: "3.4"
-  title: "Cross-encoder reranking"
+  id: "4.1"
+  title: "LangSmith tracing"
   status: "not_started"
 
 current_lesson_state:
