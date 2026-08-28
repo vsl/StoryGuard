@@ -33,6 +33,52 @@ job progress, parsing/BM25/vector ingestion, and chapter-reading vertical slice.
 UI capabilities whose endpoints do not exist show an explicit unavailable
 state. See `docs/frontend-api-gaps.md`.
 
+## LangSmith tracing
+
+Tracing is disabled by default and search still works when LangSmith is absent.
+
+1. Sign in at [smith.langchain.com](https://smith.langchain.com/), open
+   **Settings → API Keys**, and create a key. Copy it immediately; LangSmith does
+   not show the value again.
+2. Put the key in the repository's untracked `.env` file, not `.env.example`:
+
+   ```dotenv
+   LANGSMITH_API_KEY=your-key
+   LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+   LANGSMITH_PROJECT=storyguard-local
+   LANGSMITH_TRACE_CONTENT=minimal
+   LANGSMITH_TRACING=true
+   ```
+
+   For an EU LangSmith workspace, use
+   `https://eu.api.smith.langchain.com` as the endpoint.
+3. Rebuild the services so the pinned SDK and environment are loaded:
+
+   ```bash
+   docker compose up -d --build backend worker frontend
+   ```
+4. Upload and finish processing a manuscript, then run either search path:
+
+   - UI: open a project, click **Search**, choose whether to use the reranker,
+     and submit a query.
+   - Swagger: open [localhost:8000/docs](http://localhost:8000/docs), expand
+     `GET /api/projects/{project_id}/search`, enter the project UUID and query,
+     set `rerank`, then click **Execute**.
+5. Open [LangSmith](https://smith.langchain.com/), select **Tracing Projects →
+   storyguard-local**, and open the newest `retrieve_hybrid` or
+   `retrieve_hybrid_reranked` trace. The reranked trace should contain parallel
+   `retrieve_bm25` and `retrieve_vector` spans, followed by `rrf_fusion` and
+   `reranker`. With `rerank=false`, the `reranker` span is absent.
+
+`LANGSMITH_TRACE_CONTENT` controls external trace content:
+
+- `minimal` (default): hashed IDs, counts, scores, versions, parameters, and
+  timings; no query or manuscript text.
+- `redacted`: the same diagnostics plus content-shaped fields replaced by
+  `<redacted:N chars>`.
+- `full`: raw queries and retrieved chunks. Use only as an explicit opt-in for
+  public or synthetic manuscripts.
+
 Frontend checks:
 
 ```bash

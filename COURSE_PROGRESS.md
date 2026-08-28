@@ -22,10 +22,11 @@ completed_lessons:
   - "3.2 Embeddings + vector retrieval"
   - "3.3 Hybrid retrieval with RRF"
   - "3.4 Cross-encoder reranking"
+  - "4.1 LangSmith tracing"
 
 current_lesson:
-  id: "4.1"
-  title: "LangSmith tracing"
+  id: "4.2"
+  title: "AI Experiment Lab"
   status: "not_started"
 
 current_lesson_state:

@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING, Protocol
 
 from app.ai.embeddings import local_model_config
+from app.ai.tracing import traced
 
 
 if TYPE_CHECKING:
@@ -69,6 +70,12 @@ def get_reranker() -> Reranker:
     return LocalCrossEncoderReranker()
 
 
+@traced(
+    "reranker",
+    run_type="tool",
+    reranker_version=RERANKER_VERSION,
+    batch_size=RERANKER_BATCH_SIZE,
+)
 def rerank(
     query: str, candidates: list["RetrievedChunk"], top_k: int
 ) -> list["RetrievedChunk"]:

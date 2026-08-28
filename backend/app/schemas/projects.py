@@ -2,7 +2,13 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Language = Annotated[
@@ -42,3 +48,19 @@ class ProjectRead(BaseModel):
     chapter_count: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class SearchMatchRead(BaseModel):
+    chunk_id: str
+    chapter_id: str
+    chapter_ordinal: int
+    scene_id: str | None
+    text: str
+    score: float
+
+
+class ProjectSearchRead(BaseModel):
+    characters: list[dict] = Field(default_factory=list)
+    locations: list[dict] = Field(default_factory=list)
+    events: list[dict] = Field(default_factory=list)
+    manuscript_matches: list[SearchMatchRead]

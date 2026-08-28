@@ -2,6 +2,7 @@
 const nextConfig = {
   output: "standalone",
   allowedDevOrigins: ["127.0.0.1"],
+  experimental: { proxyTimeout: 120_000 },
   async rewrites() {
     const backend =
       process.env.API_PROXY_TARGET ??

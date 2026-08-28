@@ -238,7 +238,14 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             Upload new version
           </h2>
           <form className="mt-5" onSubmit={upload}>
-            <label className="grid min-h-44 cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#b9c9c3] bg-[#fafbf9] p-5 text-center hover:border-[var(--brand)]">
+            <label
+              className="grid min-h-44 cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#b9c9c3] bg-[#fafbf9] p-5 text-center hover:border-[var(--brand)]"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                setFile(event.dataTransfer.files[0] ?? null);
+              }}
+            >
               <input
                 className="sr-only"
                 type="file"

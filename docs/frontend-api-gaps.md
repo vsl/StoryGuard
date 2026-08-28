@@ -20,6 +20,7 @@ mock implementation.
 | Version history/detail | `GET /api/projects/{project_id}/manuscripts`, `GET /api/projects/{project_id}/manuscripts/{version_id}` | Version status and the actual current version are visible. |
 | Job progress | `GET /api/jobs/{job_id}` | Upload UI polls queued/running/completed/failed state and safe errors. |
 | Parsed chapters | `GET /api/projects/{project_id}/chapters`, `GET /api/projects/{project_id}/chapters/{chapter_id}` | Read-only chapter list and text use the project's current ready version. |
+| Direct search | `GET /api/projects/{project_id}/search?q=...&rerank=...` | Project search uses the current ready manuscript version and can compare hybrid retrieval with or without cross-encoder reranking. |
 | Liveness/readiness | `GET /health/live`, `GET /health/ready` | Infrastructure only; not used as product data. |
 
 ## Existing response gaps
@@ -53,7 +54,6 @@ also absent, so the forms accept a BCP 47 code and default to the backend defaul
 | Relationships | `GET /api/projects/{project_id}/relationships` | Relationships tab. |
 | Entity candidates | `GET /api/projects/{project_id}/entity-resolution/candidates` | Duplicate candidate cards. |
 | Entity decision | `POST /api/projects/{project_id}/entity-resolution/{candidate_id}/resolve` | Merge/keep-separate decisions. |
-| Direct search | `GET /api/projects/{project_id}/search?q=...` | Grouped project search. |
 | Chat streaming | `POST /api/projects/{project_id}/chat/stream` | Full Ask workspace and contextual side panel. |
 | Chat history | Thread list/detail endpoints | Persisted conversation history. |
 | Start continuity | `POST /api/projects/{project_id}/analysis/continuity` | Run-analysis action. |

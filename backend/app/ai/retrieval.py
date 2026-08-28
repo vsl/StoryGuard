@@ -11,6 +11,7 @@ from app.ai.embeddings import (
     EMBEDDING_VERSION,
     embed_query,
 )
+from app.ai.tracing import traced
 
 
 INDEX_NAME = os.environ.get("STORYGUARD_CHUNK_INDEX", "storyguard-chunks-v2")
@@ -149,6 +150,7 @@ async def replace_version_chunks(
         raise RuntimeError("Elasticsearch rejected one or more chunks")
 
 
+@traced("retrieve_bm25", retrieval_strategy="bm25")
 async def retrieve_bm25(
     query: str, project_id: str, manuscript_version_id: str, top_k: int = 30
 ) -> list[RetrievedChunk]:
@@ -186,6 +188,11 @@ async def retrieve_bm25(
     ]
 
 
+@traced(
+    "retrieve_vector",
+    retrieval_strategy="vector",
+    embedding_version=EMBEDDING_VERSION,
+)
 async def retrieve_vector(
     query: str, project_id: str, manuscript_version_id: str, top_k: int = 30
 ) -> list[RetrievedChunk]:
@@ -232,6 +239,27 @@ async def retrieve_vector(
     return sorted(results, key=lambda result: (-result.score, result.chunk_id))
 
 
+@traced("rrf_fusion", run_type="tool", retrieval_strategy="hybrid")
+def _fuse_rrf(
+    rankings: list[list[RetrievedChunk]], top_k: int, rank_constant: int
+) -> list[RetrievedChunk]:
+    chunks: dict[str, RetrievedChunk] = {}
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, chunk in enumerate(ranking, 1):
+            chunks.setdefault(chunk.chunk_id, chunk)
+            scores[chunk.chunk_id] = scores.get(chunk.chunk_id, 0) + 1 / (
+                rank_constant + rank
+            )
+
+    chunk_ids = sorted(scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id))
+    return [
+        replace(chunks[chunk_id], score=scores[chunk_id])
+        for chunk_id in chunk_ids[:top_k]
+    ]
+
+
+@traced("retrieve_hybrid", retrieval_strategy="hybrid")
 async def retrieve_hybrid(
     query: str,
     project_id: str,
@@ -252,22 +280,10 @@ async def retrieve_hybrid(
         retrieve_bm25(query, project_id, manuscript_version_id, rank_window),
         retrieve_vector(query, project_id, manuscript_version_id, rank_window),
     )
-    chunks: dict[str, RetrievedChunk] = {}
-    scores: dict[str, float] = {}
-    for ranking in rankings:
-        for rank, chunk in enumerate(ranking, 1):
-            chunks.setdefault(chunk.chunk_id, chunk)
-            scores[chunk.chunk_id] = scores.get(chunk.chunk_id, 0) + 1 / (
-                rank_constant + rank
-            )
-
-    chunk_ids = sorted(scores, key=lambda chunk_id: (-scores[chunk_id], chunk_id))
-    return [
-        replace(chunks[chunk_id], score=scores[chunk_id])
-        for chunk_id in chunk_ids[:top_k]
-    ]
+    return _fuse_rrf(rankings, top_k, rank_constant)
 
 
+@traced("retrieve_hybrid_reranked", retrieval_strategy="hybrid_reranker")
 async def retrieve_hybrid_reranked(
     query: str,
     project_id: str,

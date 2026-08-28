@@ -4,6 +4,7 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import httpx
+from langsmith import tracing_context
 
 from app.ai.embeddings import (
     EMBEDDING_DIMENSION,
@@ -19,6 +20,11 @@ from app.ai.retrieval import (
     retrieve_hybrid,
     retrieve_hybrid_reranked,
     retrieve_vector,
+)
+from app.ai.tracing import (
+    process_trace_inputs,
+    process_trace_outputs,
+    trace_content_mode,
 )
 from scripts import bm25_experiment
 
@@ -92,7 +98,92 @@ class FakeRerankerModel:
         return self.scores
 
 
+class FakeTraceClient:
+    otel_exporter = None
+
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+        self.created: list[dict] = []
+
+    def create_run(self, **kwargs) -> None:
+        if self.fail:
+            raise ConnectionError("LangSmith unavailable")
+        self.created.append(kwargs)
+
+    def update_run(self, **_kwargs) -> None:
+        if self.fail:
+            raise ConnectionError("LangSmith unavailable")
+
+
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
+    def tearDown(self) -> None:
+        trace_content_mode.cache_clear()
+
+    def test_trace_content_modes_fail_closed(self) -> None:
+        candidate = retrieved("secret-chunk")
+        candidate = RetrievedChunk(
+            **{**candidate.__dict__, "text": "secret manuscript"}
+        )
+        inputs = {
+            "query": "secret query",
+            "project_id": "project",
+            "manuscript_version_id": "version",
+            "candidates": [candidate],
+            "top_k": 1,
+        }
+
+        for mode in ("minimal", "redacted", "full", "invalid"):
+            with patch.dict(os.environ, {"LANGSMITH_TRACE_CONTENT": mode}):
+                trace_content_mode.cache_clear()
+                traced_inputs = process_trace_inputs(inputs)
+                traced_outputs = process_trace_outputs([candidate])
+            payload = repr((traced_inputs, traced_outputs))
+            if mode == "full":
+                self.assertIn("secret query", payload)
+                self.assertIn("secret manuscript", payload)
+            else:
+                self.assertNotIn("secret query", payload)
+                self.assertNotIn("secret manuscript", payload)
+            if mode == "redacted":
+                self.assertIn("<redacted:", payload)
+
+    async def test_trace_tree_and_export_failure_do_not_change_results(self) -> None:
+        source = document("project", "version", "text")
+        hit = {"_score": 1.0, "_source": source}
+        fake_model = FakeRerankerModel([1.0])
+        with (
+            patch(
+                "app.ai.retrieval._request",
+                new=AsyncMock(return_value=response({"hits": {"hits": [hit]}})),
+            ),
+            patch("app.ai.retrieval.embed_query", return_value=vector()),
+            patch(
+                "app.ai.reranking.get_reranker",
+                return_value=LocalCrossEncoderReranker(fake_model),
+            ),
+        ):
+            client = FakeTraceClient()
+            with tracing_context(enabled=True, client=client):
+                results = await retrieve_hybrid_reranked(
+                    "query", "project", "version", 1
+                )
+
+            created = {run["name"]: run for run in client.created}
+            root = created["retrieve_hybrid_reranked"]
+            hybrid = created["retrieve_hybrid"]
+            self.assertIsNone(root.get("parent_run_id"))
+            self.assertEqual(hybrid["parent_run_id"], root["id"])
+            for name in ("retrieve_bm25", "retrieve_vector", "rrf_fusion"):
+                self.assertEqual(created[name]["parent_run_id"], hybrid["id"])
+            self.assertEqual(created["reranker"]["parent_run_id"], root["id"])
+
+            with tracing_context(enabled=True, client=FakeTraceClient(fail=True)):
+                untraced_results = await retrieve_hybrid_reranked(
+                    "query", "project", "version", 1
+                )
+
+        self.assertEqual(results, untraced_results)
+
     def test_experiment_queries_are_deterministically_sharded(self) -> None:
         queries = [
             {"id": str(index), "split": "test" if index < 5 else "dev"}

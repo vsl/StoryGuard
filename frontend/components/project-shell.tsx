@@ -269,9 +269,10 @@ function ProjectSearchDialog({
 }) {
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
+  const [rerank, setRerank] = useState(true);
   const results = useEndpoint<Dictionary>(
-    ["search", projectId, query],
-    `/projects/${projectId}/search?q=${encodeURIComponent(query)}`,
+    ["search", projectId, query, rerank],
+    `/projects/${projectId}/search?q=${encodeURIComponent(query)}&rerank=${rerank}`,
     !!query,
   );
   function submit(event: FormEvent) {
@@ -292,6 +293,14 @@ function ProjectSearchDialog({
           <Search className="size-4" />
         </Button>
       </form>
+      <label className="mt-3 flex items-center gap-2 text-sm text-muted">
+        <input
+          type="checkbox"
+          checked={rerank}
+          onChange={(event) => setRerank(event.target.checked)}
+        />
+        Use cross-encoder reranker
+      </label>
       <div className="mt-5">
         {!query && (
           <p className="text-sm text-muted">

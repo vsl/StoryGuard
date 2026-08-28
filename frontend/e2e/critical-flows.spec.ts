@@ -153,11 +153,18 @@ test("upload a new manuscript version", async ({ page }) => {
     }),
   );
   await page.goto("/projects/project-1/versions");
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "revision.txt",
-    mimeType: "text/plain",
-    buffer: Buffer.from("Revision"),
+  const dataTransfer = await page.evaluateHandle(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["Revision"], "revision.txt", { type: "text/plain" }),
+    );
+    return transfer;
   });
+  await page
+    .locator("label")
+    .filter({ hasText: "Choose or drop a manuscript" })
+    .dispatchEvent("drop", { dataTransfer });
+  await expect(page.getByText("revision.txt")).toBeVisible();
   await page.getByRole("button", { name: "Upload manuscript" }).click();
   await expect(page.getByText("queued", { exact: true })).toBeVisible();
 });

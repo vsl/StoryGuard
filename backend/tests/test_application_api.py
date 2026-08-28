@@ -8,6 +8,12 @@ from unittest.mock import AsyncMock, patch
 def fake_embeddings(texts: list[str]) -> list[list[float]]:
     return [[1.0, *([0.0] * 767)] for _ in texts]
 
+
+class IdentityReranker:
+    def rerank(self, _query, candidates, top_k):
+        return candidates[:top_k]
+
+
 RUN_DATABASE_TESTS = os.environ.get("RUN_DATABASE_TESTS") == "1"
 
 if RUN_DATABASE_TESTS:
@@ -118,6 +124,50 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
             f"/api/projects/{self.other_project_id}/chapters/{chapter_id}"
         )
         self.assertEqual(cross_project.status_code, 404)
+
+        with (
+            patch(
+                "app.ai.retrieval.embed_query",
+                return_value=fake_embeddings([""])[0],
+            ),
+            patch("app.ai.reranking.get_reranker", return_value=IdentityReranker()),
+        ):
+            hybrid = await self.client.get(
+                f"/api/projects/{self.project_id}/search",
+                params={"q": "Alice", "rerank": "false"},
+            )
+            reranked = await self.client.get(
+                f"/api/projects/{self.project_id}/search",
+                params={"q": "Alice", "rerank": "true"},
+            )
+        self.assertEqual(hybrid.status_code, 200)
+        self.assertEqual(reranked.status_code, 200)
+        self.assertEqual(len(hybrid.json()["manuscript_matches"]), 1)
+        self.assertEqual(len(reranked.json()["manuscript_matches"]), 1)
+        self.assertIn(
+            "Alice waited", reranked.json()["manuscript_matches"][0]["text"]
+        )
+        self.assertEqual(
+            (
+                await self.client.get(
+                    f"/api/projects/{self.other_project_id}/search",
+                    params={"q": "Alice"},
+                )
+            ).json()["manuscript_matches"],
+            [],
+        )
+
+        with patch(
+            "app.api.projects.retrieve_hybrid",
+            new=AsyncMock(side_effect=RuntimeError("internal secret")),
+        ):
+            unavailable = await self.client.get(
+                f"/api/projects/{self.project_id}/search",
+                params={"q": "Alice", "rerank": "false"},
+            )
+        self.assertEqual(unavailable.status_code, 503)
+        self.assertEqual(unavailable.json()["error"]["code"], "RETRIEVAL_UNAVAILABLE")
+        self.assertNotIn("internal secret", unavailable.text)
 
         job = (await self.client.get(f"/api/jobs/{upload['job_id']}")).json()
         self.assertEqual((job["status"], job["completed"], job["total"]), ("completed", 1, 1))
