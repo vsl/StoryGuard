@@ -13,8 +13,10 @@ from importlib.metadata import version as package_version
 from pathlib import Path
 
 import httpx
+from langsmith import trace
 
 from app.ai import retrieval
+from app.ai.experiment_suites import SUITES, select_suite_queries
 from app.ai.embeddings import (
     EMBEDDING_DIMENSION,
     EMBEDDING_REPOSITORY,
@@ -220,7 +222,7 @@ def chunk_book(book: dict) -> list[dict[str, object]]:
     return documents
 
 
-def experiment_data() -> tuple[
+def experiment_data(suite_id: str | None = None) -> tuple[
     list[dict],
     list[dict],
     dict[str, list[dict[str, object]]],
@@ -231,6 +233,10 @@ def experiment_data() -> tuple[
 ]:
     books = load("retrieval_documents.jsonl")
     queries = load("retrieval_queries.jsonl")
+    if suite_id is not None:
+        queries = select_suite_queries(queries, suite_id)
+        selected_book_ids = {query["book_id"] for query in queries}
+        books = [book for book in books if book["id"] in selected_book_ids]
     documents_by_book = {book["id"]: chunk_book(book) for book in books}
     all_documents = [
         document
@@ -266,6 +272,16 @@ def experiment_data() -> tuple[
         "chunks_sha256": value_sha256(documents_by_book),
         "qrels_sha256": value_sha256(relevant_by_query),
         "ground_truth": "all same-book StoryGuard chunks containing exact evidence",
+        **(
+            {
+                "suite_id": suite_id,
+                "selected_query_ids_sha256": value_sha256(
+                    [query["id"] for query in queries]
+                ),
+            }
+            if suite_id is not None
+            else {}
+        ),
     }
     return (
         books,
@@ -278,7 +294,20 @@ def experiment_data() -> tuple[
     )
 
 
+def _percentile(values: list[float], percentile: float) -> float:
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * percentile
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
 def metrics(results: list[dict]) -> dict:
+    latencies = [row["latency_ms"] for row in results]
     return {
         "query_count": len(results),
         **{
@@ -293,9 +322,9 @@ def metrics(results: list[dict]) -> dict:
             1 / row["rank"] if row["rank"] is not None and row["rank"] <= 10 else 0
             for row in results
         ),
-        "median_latency_ms": statistics.median(
-            row["latency_ms"] for row in results
-        ),
+        "median_latency_ms": statistics.median(latencies),
+        "p50_latency_ms": _percentile(latencies, 0.5),
+        "p95_latency_ms": _percentile(latencies, 0.95),
         **(
             {
                 "median_reranking_latency_ms": statistics.median(
@@ -526,8 +555,56 @@ def reranker_manifest(candidate_fingerprint: str) -> dict:
     }
 
 
+async def prepare_suite_index(suite_id: str) -> dict:
+    (
+        _books,
+        _queries,
+        documents_by_book,
+        all_documents,
+        scopes,
+        _relevant_by_query,
+        dataset,
+    ) = experiment_data(suite_id)
+    elasticsearch = await _request("GET", "/")
+    elasticsearch_version = str(elasticsearch.json()["version"]["number"])
+    fingerprint = experiment_fingerprint(
+        str(dataset["chunks_sha256"]), elasticsearch_version, True
+    )
+    retrieval.INDEX_NAME = EXPERIMENT_INDEX_PREFIX + fingerprint
+    if await experiment_index_complete(len(all_documents), True):
+        return {
+            "status": "already_complete",
+            "experiment_index": retrieval.INDEX_NAME,
+            "document_count": len(all_documents),
+        }
+
+    await delete_experiment_index()
+    vectors = await asyncio.to_thread(
+        embed_documents,
+        [str(document["text"]) for document in all_documents],
+    )
+    if len(vectors) != len(all_documents):
+        raise ValueError("Embedding count does not match document count")
+    for document, vector in zip(all_documents, vectors, strict=True):
+        document["embedding_version"] = EMBEDDING_VERSION
+        document["embedding"] = vector
+    for book_id, documents in documents_by_book.items():
+        project_id, version_id = scopes[book_id]
+        await replace_version_chunks(project_id, version_id, documents)
+    if not await experiment_index_complete(len(all_documents), True):
+        raise RuntimeError("Experiment index is incomplete after build")
+    return {
+        "status": "complete",
+        "experiment_index": retrieval.INDEX_NAME,
+        "document_count": len(all_documents),
+    }
+
+
 async def run_candidate_shard(
-    output_root: Path, shard_index: int, shard_count: int
+    output_root: Path,
+    shard_index: int,
+    shard_count: int,
+    suite_id: str | None = None,
 ) -> dict:
     (
         _books,
@@ -537,9 +614,15 @@ async def run_candidate_shard(
         scopes,
         relevant_by_query,
         dataset,
-    ) = experiment_data()
-    test_queries = [query for query in queries if query["split"] == "test"]
-    selected = select_queries(queries, "test", shard_index, shard_count)
+    ) = experiment_data(suite_id)
+    evaluation_queries = (
+        queries
+        if suite_id is not None
+        else [query for query in queries if query["split"] == "test"]
+    )
+    selected = evaluation_queries[shard_index::shard_count]
+    if not selected:
+        raise ValueError("Selected experiment shard has no queries")
     elasticsearch = await _request("GET", "/")
     elasticsearch_version = str(elasticsearch.json()["version"]["number"])
     fingerprint = experiment_fingerprint(
@@ -550,10 +633,14 @@ async def run_candidate_shard(
         raise RuntimeError("The fingerprinted experiment index is not complete")
 
     manifest = {
-        "experiment_id": "lesson-3.4-cross-encoder-reranker",
+        "experiment_id": (
+            "lesson-4.2-ai-experiment-lab"
+            if suite_id is not None
+            else "lesson-3.4-cross-encoder-reranker"
+        ),
         "dataset": dataset,
-        "evaluation_split": "test",
-        "expected_query_ids": [query["id"] for query in test_queries],
+        "evaluation_split": "dev" if suite_id is not None else "test",
+        "expected_query_ids": [query["id"] for query in evaluation_queries],
         "shard_count": shard_count,
         "candidate_count": RERANKER_CANDIDATES,
         "experiment_index": retrieval.INDEX_NAME,
@@ -570,6 +657,7 @@ async def run_candidate_shard(
             "sentence_transformers": package_version("sentence-transformers"),
             "torch": package_version("torch"),
         },
+        **({"evaluation_suite": suite_id} if suite_id is not None else {}),
     }
     manifest_sha256 = value_sha256(manifest)
     output_dir = _version_dir(output_root, manifest_sha256)
@@ -777,6 +865,7 @@ def aggregate_rows(rows: list[dict]) -> dict:
         if (row["reranker_rank"] or RERANKER_CANDIDATES + 1)
         > (row["baseline_rank"] or RERANKER_CANDIDATES + 1)
     ]
+    candidate_pool_misses = [row for row in rows if row["baseline_rank"] is None]
 
     def examples(selected: list[dict]) -> list[dict]:
         return [
@@ -808,9 +897,8 @@ def aggregate_rows(rows: list[dict]) -> dict:
         "improvement_examples": examples(improvements),
         "regression_count": len(regressions),
         "regression_examples": examples(regressions),
-        "candidate_pool_miss_count": sum(
-            row["baseline_rank"] is None for row in rows
-        ),
+        "candidate_pool_miss_count": len(candidate_pool_misses),
+        "candidate_pool_miss_examples": examples(candidate_pool_misses),
     }
 
 
@@ -1143,29 +1231,26 @@ async def run(
     }
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", choices=("candidates", "rerank", "aggregate"))
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_RERANKER_OUTPUT)
-    parser.add_argument(
-        "--strategy",
-        choices=("bm25", "vector", "hybrid", "hybrid_reranker", "compare"),
-        default="bm25",
-    )
-    parser.add_argument("--split", choices=("dev", "test"))
-    parser.add_argument("--shard-index", type=int, default=0)
-    parser.add_argument("--shard-count", type=int, default=1)
-    args = parser.parse_args()
+def cli_result(args: argparse.Namespace, parser: argparse.ArgumentParser) -> dict:
+    if args.phase == "prepare":
+        if args.suite is None:
+            parser.error("--suite is required for the prepare phase")
+        return asyncio.run(prepare_suite_index(args.suite))
     if args.phase == "candidates":
-        result = asyncio.run(
-            run_candidate_shard(args.output_dir, args.shard_index, args.shard_count)
+        return asyncio.run(
+            run_candidate_shard(
+                args.output_dir,
+                args.shard_index,
+                args.shard_count,
+                args.suite,
+            )
         )
-    elif args.phase == "rerank":
-        result = run_rerank_shard(args.output_dir, args.shard_index)
-    elif args.phase == "aggregate":
+    if args.phase == "rerank":
+        return run_rerank_shard(args.output_dir, args.shard_index)
+    if args.phase == "aggregate":
         aggregate = aggregate_shards(args.output_dir)
         active = json.loads((args.output_dir / "active.json").read_text())
-        result = {
+        return {
             "status": "complete",
             "path": str(
                 _version_dir(args.output_dir, active["candidate_fingerprint"])
@@ -1175,15 +1260,63 @@ if __name__ == "__main__":
             ),
             "query_count": aggregate["query_count"],
         }
-    else:
-        result = asyncio.run(
-            run(
-                args.strategy,
-                split=args.split,
-                shard_index=args.shard_index,
-                shard_count=args.shard_count,
-            )
+    if args.suite is not None:
+        parser.error("--suite requires a phased experiment")
+    return asyncio.run(
+        run(
+            args.strategy,
+            split=args.split,
+            shard_index=args.shard_index,
+            shard_count=args.shard_count,
         )
-    print(
-        json.dumps(result, indent=2)
     )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--phase", choices=("prepare", "candidates", "rerank", "aggregate")
+    )
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_RERANKER_OUTPUT)
+    parser.add_argument("--suite", choices=tuple(SUITES))
+    parser.add_argument(
+        "--strategy",
+        choices=("bm25", "vector", "hybrid", "hybrid_reranker", "compare"),
+        default="bm25",
+    )
+    parser.add_argument("--split", choices=("dev", "test"))
+    parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument("--shard-count", type=int, default=1)
+    parser.add_argument("--experiment-run-id", type=uuid.UUID)
+    parser.add_argument("--trace-id", type=uuid.UUID)
+    args = parser.parse_args()
+    if args.trace_id is not None:
+        if args.phase is None or args.experiment_run_id is None:
+            parser.error("--trace-id requires --phase and --experiment-run-id")
+        with trace(
+            name=f"storyguard.experiment.{args.phase}",
+            inputs={
+                "suite": args.suite,
+                "shard_index": args.shard_index,
+                "shard_count": args.shard_count,
+            },
+            run_type="chain",
+            run_id=args.trace_id,
+            tags=["ai-experiment-lab", args.phase],
+            metadata={
+                "experiment_run_id": str(args.experiment_run_id),
+                "diagnostic_only": True,
+            },
+        ) as root_run:
+            result = cli_result(args, parser)
+            root_run.end(
+                outputs={
+                    key: value
+                    for key, value in result.items()
+                    if key in {"status", "query_count", "document_count"}
+                }
+            )
+        result["trace_id"] = str(args.trace_id)
+    else:
+        result = cli_result(args, parser)
+    print(json.dumps(result, indent=2))

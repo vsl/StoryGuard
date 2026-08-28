@@ -21,6 +21,7 @@ mock implementation.
 | Job progress | `GET /api/jobs/{job_id}` | Upload UI polls queued/running/completed/failed state and safe errors. |
 | Parsed chapters | `GET /api/projects/{project_id}/chapters`, `GET /api/projects/{project_id}/chapters/{chapter_id}` | Read-only chapter list and text use the project's current ready version. |
 | Direct search | `GET /api/projects/{project_id}/search?q=...&rerank=...` | Project search uses the current ready manuscript version and can compare hybrid retrieval with or without cross-encoder reranking. |
+| AI Experiment Lab | `GET /api/developer/datasets`, `GET /api/developer/experiment-configs`, `POST/GET /api/developer/experiments`, detail/failures endpoints | Runs diagnostic smoke/development Hybrid-vs-reranker comparisons through memory-isolated background subprocess phases. |
 | Liveness/readiness | `GET /health/live`, `GET /health/ready` | Infrastructure only; not used as product data. |
 
 ## Existing response gaps
@@ -63,21 +64,19 @@ also absent, so the forms accept a BCP 47 code and default to the backend defaul
 | Analysis | Analysis list/detail endpoints | Latest run, metrics, version metadata, and history. |
 | Evidence lookup | No standalone endpoint specified | Evidence must arrive embedded with facts, issues, events, or chat citations. |
 
-## Missing developer endpoints
+## Developer experiment boundaries
 
-| Capability | Endpoint |
-| --- | --- |
-| Dataset catalog | `GET /api/developer/datasets` |
-| Controlled configuration catalog | `GET /api/developer/experiment-configs` |
-| Start experiment | `POST /api/developer/experiments` |
-| Experiment history | `GET /api/developer/experiments` |
-| Experiment detail | `GET /api/developer/experiments/{experiment_id}` |
-| Failure browser | `GET /api/developer/experiments/{experiment_id}/failures` |
+The Experiment Lab exposes only server-known Gacha smoke/development suites and
+the controlled Hybrid RRF versus Hybrid RRF + cross-encoder pair. These UI runs
+are diagnostic-only. The 233-query held-out promotion evaluation remains in the
+restartable CLI shard workflow so the MacBook never accumulates both models in
+a long-lived application worker.
 
-The frontend does not expose an arbitrary model-ID field and does not provide a
-candidate-promotion endpoint. Safe LangSmith run/trace IDs may be included in
-future experiment and chat metadata, but private traces, prompts, or credentials
-must never be returned.
+The frontend does not expose arbitrary story selection, raw model IDs, or a
+candidate-promotion endpoint. Uploaded manuscripts are not scored because they
+do not have query/evidence ground truth. Safe LangSmith identifiers may be
+included when available, but private traces, prompts, or credentials are never
+returned.
 
 ## Expected error semantics
 

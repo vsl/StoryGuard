@@ -37,12 +37,15 @@ services:
       HF_TOKEN: ${HF_TOKEN:-}
       PYTHONPATH: /app
       STORYGUARD_MODELS_CONFIG: /app/config/models.yaml
+      STORYGUARD_DATASETS_CONFIG: /config/datasets.yaml
+      STORYGUARD_DATA_DIR: /data
       STORYGUARD_LOCAL_DIR: /local
     volumes:
       - ./.local/hf-cache:/models
       - ./.local:/local
       - ./data:/data:ro
       - ./config/models.yaml:/app/config/models.yaml:ro
+      - ./config/datasets.yaml:/config/datasets.yaml:ro
     ports:
       - "8000:8000"
     depends_on:
@@ -68,6 +71,7 @@ services:
       - app.queue.broker:broker
       - app.queue.tasks.smoke
       - app.queue.tasks.ingestion
+      - app.queue.tasks.experiments
     environment:
       DATABASE_URL: postgresql+asyncpg://storyguard:${POSTGRES_PASSWORD:-storyguard}@postgres:5432/storyguard
       ELASTICSEARCH_URL: http://elasticsearch:9200
@@ -83,10 +87,17 @@ services:
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
       HF_HOME: /models
       HF_TOKEN: ${HF_TOKEN:-}
+      PYTHONPATH: /app
       STORYGUARD_MODELS_CONFIG: /app/config/models.yaml
+      STORYGUARD_DATASETS_CONFIG: /config/datasets.yaml
+      STORYGUARD_DATA_DIR: /data
+      STORYGUARD_LOCAL_DIR: /local
     volumes:
       - ./.local/hf-cache:/models
+      - ./.local:/local
+      - ./data:/data:ro
       - ./config/models.yaml:/app/config/models.yaml:ro
+      - ./config/datasets.yaml:/config/datasets.yaml:ro
     depends_on:
       backend:
         condition: service_healthy

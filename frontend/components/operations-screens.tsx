@@ -97,6 +97,13 @@ function listOf<T>(data: T[] | { items?: T[] } | undefined) {
   return Array.isArray(data) ? data : (data?.items ?? []);
 }
 
+function metricValue(metric: string, value?: number) {
+  if (value === undefined) return "—";
+  if (metric.endsWith("latency_ms")) return value.toFixed(1);
+  if (metric === "api_cost_usd") return value.toFixed(4);
+  return value.toFixed(4);
+}
+
 export function VersionsScreen({ projectId }: { projectId: string }) {
   const welcome = useSearchParams().get("welcome") === "1";
   const project = useProject(projectId);
@@ -780,11 +787,23 @@ type ExperimentConfig = {
   version?: string;
   [key: string]: unknown;
 };
+type ExperimentDataset = ExperimentConfig & {
+  purpose?: string;
+  stories?: string[];
+  query_count?: number;
+  promotion_eligible?: boolean;
+};
 type Experiment = {
   id: string;
   status?: string;
+  stage?: string;
   baseline?: string;
   candidate?: string;
+  dataset?: string;
+  completed?: number;
+  total?: number;
+  diagnostic_only?: boolean;
+  error_message_safe?: string;
   created_at?: string;
   metrics?: Record<string, { baseline?: number; candidate?: number }>;
 };
@@ -800,18 +819,25 @@ type ExperimentFailure = {
 
 export function ExperimentLabScreen() {
   const datasets = useEndpoint<
-    ExperimentConfig[] | { items?: ExperimentConfig[] }
+    ExperimentDataset[] | { items?: ExperimentDataset[] }
   >(["developer", "datasets"], "/developer/datasets");
   const configs = useEndpoint<
     ExperimentConfig[] | { items?: ExperimentConfig[] }
   >(["developer", "configs"], "/developer/experiment-configs");
-  const experiments = useEndpoint<Experiment[] | { items?: Experiment[] }>(
-    ["developer", "experiments"],
-    "/developer/experiments",
-  );
+  const experiments = useQuery<Experiment[] | { items?: Experiment[] }>({
+    queryKey: ["developer", "experiments"],
+    queryFn: () =>
+      api<Experiment[] | { items?: Experiment[] }>("/developer/experiments"),
+    refetchInterval: (query) => {
+      const latest = listOf(query.state.data)[0];
+      return ["queued", "running", "scoring"].includes(latest?.status ?? "")
+        ? 2000
+        : false;
+    },
+  });
   const [dataset, setDataset] = useState("");
-  const [baseline, setBaseline] = useState("");
-  const [candidate, setCandidate] = useState("");
+  const [baseline, setBaseline] = useState("hybrid-rrf");
+  const [candidate, setCandidate] = useState("hybrid-rrf-reranker");
   const [failureType, setFailureType] = useState("");
   const run = useMutation({
     mutationFn: () =>
@@ -829,13 +855,16 @@ export function ExperimentLabScreen() {
   const configItems = listOf(configs.data);
   const history = listOf(experiments.data);
   const latest = history[0];
-  const failures = useEndpoint<
+  const failures = useQuery<
     ExperimentFailure[] | { items?: ExperimentFailure[] }
-  >(
-    ["developer", "experiment-failures", latest?.id],
-    `/developer/experiments/${latest?.id ?? "pending"}/failures`,
-    !!latest,
-  );
+  >({
+    queryKey: ["developer", "experiment-failures", latest?.id],
+    queryFn: () =>
+      api<ExperimentFailure[] | { items?: ExperimentFailure[] }>(
+        `/developer/experiments/${latest?.id ?? "pending"}/failures`,
+      ),
+    enabled: latest?.status === "completed",
+  });
   const failureItems = listOf(failures.data);
   const visibleFailures = failureItems.filter(
     (failure) => !failureType || failure.type === failureType,
@@ -845,6 +874,10 @@ export function ExperimentLabScreen() {
   ] as string[];
   const baselineConfig = configItems.find((item) => item.id === baseline);
   const candidateConfig = configItems.find((item) => item.id === candidate);
+  const selectedDataset = datasetItems.find((item) => item.id === dataset);
+  const experimentActive = ["queued", "running", "scoring"].includes(
+    latest?.status ?? "",
+  );
   return (
     <>
       <PageHeader
@@ -882,6 +915,20 @@ export function ExperimentLabScreen() {
                   ))}
                 </select>
               </label>
+              {selectedDataset && (
+                <div className="rounded-xl bg-[#f5f7f5] p-3 text-xs">
+                  <p className="font-semibold">
+                    {selectedDataset.query_count ?? "—"} queries ·{" "}
+                    {selectedDataset.purpose ?? "diagnostic"}
+                  </p>
+                  <p className="mt-1 text-muted">
+                    {(selectedDataset.stories ?? []).join(", ")}
+                  </p>
+                  <p className="mt-2 font-semibold text-[var(--amber)]">
+                    Diagnostic only · not eligible for promotion
+                  </p>
+                </div>
+              )}
               <label className="block text-sm font-semibold">
                 Baseline
                 <select
@@ -956,7 +1003,13 @@ export function ExperimentLabScreen() {
               )}
               <Button
                 className="w-full"
-                disabled={!dataset || !baseline || !candidate || run.isPending}
+                disabled={
+                  !dataset ||
+                  !baseline ||
+                  !candidate ||
+                  run.isPending ||
+                  experimentActive
+                }
                 onClick={() => run.mutate()}
               >
                 <Beaker className="size-4" />
@@ -1004,6 +1057,23 @@ export function ExperimentLabScreen() {
                   </Badge>
                   <span className="text-xs text-muted">{latest.id}</span>
                 </div>
+                <p className="mt-3 text-sm text-muted">
+                  {latest.dataset} · {latest.stage?.replaceAll("_", " ")}
+                  {latest.total
+                    ? ` · ${latest.completed ?? 0} / ${latest.total} phases`
+                    : ""}
+                </p>
+                {latest.diagnostic_only && (
+                  <p className="mt-2 text-xs font-semibold text-[var(--amber)]">
+                    Diagnostic run — use the held-out CLI evaluation for
+                    promotion decisions.
+                  </p>
+                )}
+                {latest.status === "failed" && (
+                  <p className="mt-3 text-sm text-[var(--danger)]">
+                    {latest.error_message_safe ?? "Experiment failed."}
+                  </p>
+                )}
                 <div className="mt-6 overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
@@ -1023,8 +1093,8 @@ export function ExperimentLabScreen() {
                             <th className="py-3 font-medium">
                               {metric.replaceAll("_", " ")}
                             </th>
-                            <td>{values.baseline ?? "—"}</td>
-                            <td>{values.candidate ?? "—"}</td>
+                            <td>{metricValue(metric, values.baseline)}</td>
+                            <td>{metricValue(metric, values.candidate)}</td>
                           </tr>
                         ),
                       )}
@@ -1041,8 +1111,7 @@ export function ExperimentLabScreen() {
                   Failure browser
                 </h2>
                 <p className="mt-2 text-sm text-muted">
-                  Inspect retrieval, routing, grounding, citation, continuity,
-                  and fallback failures.
+                  Inspect candidate-pool misses and reranker regressions.
                 </p>
               </div>
               {!!failureTypes.length && (

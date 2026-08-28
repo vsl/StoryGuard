@@ -23,10 +23,11 @@ completed_lessons:
   - "3.3 Hybrid retrieval with RRF"
   - "3.4 Cross-encoder reranking"
   - "4.1 LangSmith tracing"
+  - "4.2 AI Experiment Lab"
 
 current_lesson:
-  id: "4.2"
-  title: "AI Experiment Lab"
+  id: "5.1"
+  title: "Entity extraction"
   status: "not_started"
 
 current_lesson_state:
