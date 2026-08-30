@@ -24,10 +24,11 @@ completed_lessons:
   - "3.4 Cross-encoder reranking"
   - "4.1 LangSmith tracing"
   - "4.2 AI Experiment Lab"
+  - "5.1 Entity extraction"
 
 current_lesson:
-  id: "5.1"
-  title: "Entity extraction"
+  id: "5.2"
+  title: "Entity resolution"
   status: "not_started"
 
 current_lesson_state:

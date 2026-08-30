@@ -1,0 +1,19 @@
+model_list:
+  - model_name: storyguard-fast
+    litellm_params:
+      model: ollama_chat/gemma4:e4b
+      api_base: http://host.docker.internal:11434
+  - model_name: storyguard-entity-gemma4-e4b
+    litellm_params:
+      model: ollama_chat/gemma4:e4b
+      api_base: http://host.docker.internal:11434
+  - model_name: storyguard-entity-qwen35-9b
+    litellm_params:
+      model: ollama_chat/qwen3.5:9b
+      api_base: http://host.docker.internal:11434
+      think: false
+  - model_name: storyguard-entity-qwen35-4b
+    litellm_params:
+      model: ollama_chat/qwen3.5:4b
+      api_base: http://host.docker.internal:11434
+      think: false

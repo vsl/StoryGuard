@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.models import (  # noqa: F401
+    entity_mention,
     experiment_run,
     job_run,
     manuscript_version,

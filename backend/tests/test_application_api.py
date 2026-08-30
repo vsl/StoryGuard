@@ -101,6 +101,9 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
         with patch(
             "app.queue.tasks.ingestion.embed_documents",
             side_effect=fake_embeddings,
+        ), patch(
+            "app.queue.tasks.ingestion.extract_version_entities",
+            new=AsyncMock(return_value=1),
         ):
             await run_parse_and_ingest(uuid.UUID(upload["job_id"]))
 

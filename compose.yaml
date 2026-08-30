@@ -80,6 +80,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-storyguard-dev}
       MINIO_BUCKET: storyguard-manuscripts
       RABBITMQ_URL: amqp://storyguard:${RABBITMQ_PASSWORD:-storyguard}@rabbitmq:5672/
+      LITELLM_URL: http://litellm:4000
+      LITELLM_API_KEY: ${LITELLM_MASTER_KEY:-sk-storyguard-local}
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
       LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
       LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-storyguard-local}
@@ -100,6 +102,8 @@ services:
       - ./config/datasets.yaml:/config/datasets.yaml:ro
     depends_on:
       backend:
+        condition: service_healthy
+      litellm:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy

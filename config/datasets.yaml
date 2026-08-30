@@ -56,3 +56,19 @@ datasets:
     original_source:
       hf_id: LumberChunker/GutenQA
       revision: 5f0f6f10d92a819f8efac7c10c0c983033bbe430
+
+  entity_extraction_eval:
+    fixture: entity_extraction.jsonl
+    splits: [dev, test]
+    expected_example_count: 18
+    purpose: [entity_extraction_eval]
+    provenance_url: local://storyguard/hand-labeled
+    license_notes: Short synthetic passages authored for deterministic local evaluation.
+
+  entity_extraction_model_eval:
+    fixture: entity_extraction_model_eval.jsonl
+    splits: [test]
+    expected_example_count: 24
+    purpose: [entity_extraction_model_eval]
+    provenance_url: local://storyguard/hand-labeled
+    license_notes: Short synthetic passages authored for deterministic local model comparison.

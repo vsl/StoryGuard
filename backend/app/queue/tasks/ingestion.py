@@ -11,6 +11,7 @@ from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.narrative import Chapter, Chunk, Scene
 from app.db.models.project import Project
 from app.db.session import SessionLocal
+from app.entity_mentions import extract_version_entities
 from app.ai.retrieval import replace_version_chunks
 from app.manuscripts import minio_client
 from app.parsing import parse_manuscript
@@ -206,8 +207,31 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
                 .where(Chunk.manuscript_version_id == version.id)
                 .values(embedding_version=EMBEDDING_VERSION)
             )
+            job.stage = "entity_extraction"
+    except Exception:
+        await _mark_failed(
+            job_id,
+            "ELASTICSEARCH_INDEXING_FAILED",
+            "The manuscript search index could not be created.",
+        )
+        raise
+
+    try:
+        await extract_version_entities(project_id, version_id)
+        async with SessionLocal() as session, session.begin():
+            job = await session.get(JobRun, job_id, with_for_update=True)
+            version = await session.get(ManuscriptVersion, version_id, with_for_update=True)
+            project = await session.get(Project, project_id, with_for_update=True)
+            if (
+                job is None
+                or version is None
+                or project is None
+                or job.manuscript_version_id != version.id
+                or version.project_id != job.project_id
+            ):
+                raise ValueError("Job scope changed during entity extraction")
             job.status = "completed"
-            job.stage = "vector_indexed"
+            job.stage = "entities_extracted"
             job.completed_units = job.total_units = len(chapters)
             job.completed_at = datetime.now(timezone.utc)
             version.status = "ready"
@@ -216,8 +240,8 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
     except Exception:
         await _mark_failed(
             job_id,
-            "ELASTICSEARCH_INDEXING_FAILED",
-            "The manuscript search index could not be created.",
+            "ENTITY_EXTRACTION_FAILED",
+            "The manuscript entities could not be extracted.",
         )
         raise
 

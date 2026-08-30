@@ -3,15 +3,47 @@ import io
 import os
 import unittest
 import uuid
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from docx import Document
 
+from app.ai.entity_extraction import (
+    MODEL_ALIAS,
+    ExtractionResult,
+    EntityType,
+    ResolvedMention,
+)
 from app.parsing import ChunkingConfig, parse_manuscript, token_spans
 
 
 def fake_embeddings(texts: list[str]) -> list[list[float]]:
     return [[1.0, *([0.0] * 767)] for _ in texts]
+
+
+async def fake_entity_extraction(
+    text: str,
+    prompt_version: str,
+    _client=None,
+    model_alias: str = MODEL_ALIAS,
+) -> ExtractionResult:
+    mentions = tuple(
+        ResolvedMention(
+            surface_text=name,
+            entity_type=EntityType.CHARACTER,
+            start_offset=text.index(name),
+            end_offset=text.index(name) + len(name),
+        )
+        for name in ("Alice", "Bob")
+        if name in text
+    )
+    return ExtractionResult(
+        mentions=mentions,
+        invalid_mentions=(),
+        model=model_alias,
+        prompt_version=prompt_version,
+        latency_ms=1,
+        repair_count=0,
+    )
 
 
 class ParsingTest(unittest.TestCase):
@@ -188,6 +220,7 @@ RUN_DATABASE_TESTS = os.environ.get("RUN_DATABASE_TESTS") == "1"
 if RUN_DATABASE_TESTS:
     from sqlalchemy import func, select
 
+    from app.db.models.entity_mention import EntityMention
     from app.db.models.job_run import JobRun
     from app.db.models.manuscript_version import ManuscriptVersion
     from app.db.models.narrative import Chapter, Chunk, Scene
@@ -244,6 +277,9 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         with patch(
             "app.queue.tasks.ingestion.embed_documents",
             side_effect=fake_embeddings,
+        ), patch(
+            "app.entity_mentions.extract_entities",
+            side_effect=fake_entity_extraction,
         ):
             await run_parse_and_ingest(job.id)
             await run_parse_and_ingest(job.id)
@@ -278,6 +314,21 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 )
             )
             project = await session.get(Project, self.project_id)
+            entity_mentions = list(
+                await session.scalars(
+                    select(EntityMention)
+                    .where(EntityMention.manuscript_version_id == version.id)
+                    .order_by(EntityMention.start_offset)
+                )
+            )
+            chapter_text = {
+                chapter.id: chapter.text
+                for chapter in await session.scalars(
+                    select(Chapter).where(
+                        Chapter.manuscript_version_id == version.id
+                    )
+                )
+            }
         self.assertEqual((persisted_job.status, persisted_job.attempts), ("completed", 1))
         self.assertEqual((chapter_count, scene_count, chunk_count), (1, 2, 2))
         self.assertEqual(embedding_versions, {"embeddinggemma-v1"})
@@ -285,6 +336,25 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(persisted_version.ready_at)
         self.assertEqual(persisted_version.parse_metadata["chunking"]["overlap_tokens"], 100)
         self.assertEqual(project.current_manuscript_version_id, version.id)
+        self.assertEqual(
+            [mention.surface_text for mention in entity_mentions], ["Alice", "Bob"]
+        )
+        self.assertTrue(
+            all(
+                chapter_text[mention.chapter_id][
+                    mention.start_offset : mention.end_offset
+                ]
+                == mention.surface_text
+                for mention in entity_mentions
+            )
+        )
+        self.assertEqual(
+            {
+                (mention.prompt_version, mention.model_alias)
+                for mention in entity_mentions
+            },
+            {("entity_extractor:v2", "storyguard-fast")},
+        )
 
         bad_version, bad_job = await self._version_and_job("bad.txt", b"\xff")
         with self.assertRaisesRegex(ValueError, "UTF-8"):
@@ -318,6 +388,34 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             ("failed", "failed", "EMBEDDING_FAILED"),
         )
         self.assertNotIn("private", embedding_job.error_message_safe)
+        self.assertEqual(project.current_manuscript_version_id, version.id)
+
+        entity_version, entity_job = await self._version_and_job(
+            "entity.txt", b"Chapter 1\nEntity extraction failure."
+        )
+        with (
+            patch(
+                "app.queue.tasks.ingestion.embed_documents",
+                side_effect=fake_embeddings,
+            ),
+            patch(
+                "app.queue.tasks.ingestion.extract_version_entities",
+                new=AsyncMock(side_effect=RuntimeError("private model output")),
+            ),
+            self.assertRaisesRegex(RuntimeError, "private model output"),
+        ):
+            await run_parse_and_ingest(entity_job.id)
+        async with SessionLocal() as session:
+            entity_version = await session.get(
+                ManuscriptVersion, entity_version.id
+            )
+            entity_job = await session.get(JobRun, entity_job.id)
+            project = await session.get(Project, self.project_id)
+        self.assertEqual(
+            (entity_version.status, entity_job.status, entity_job.error_code),
+            ("failed", "failed", "ENTITY_EXTRACTION_FAILED"),
+        )
+        self.assertNotIn("private", entity_job.error_message_safe)
         self.assertEqual(project.current_manuscript_version_id, version.id)
 
         scoped_version, scoped_job = await self._version_and_job(
