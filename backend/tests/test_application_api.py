@@ -64,13 +64,14 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
         await self.client.aclose()
         await engine.dispose()
 
-    async def _upload(self, name: str = "story.txt") -> dict:
+    async def _upload(self, name: str = "story.txt", extraction_model: str | None = None) -> dict:
         with patch(
             "app.api.ingestion.parse_and_ingest_manuscript.kiq", new=AsyncMock()
         ):
             response = await self.client.post(
                 f"/api/projects/{self.project_id}/manuscripts",
                 files={"file": (name, b"Chapter 1\nAlice waited.", "text/plain")},
+                data={"extraction_model": extraction_model} if extraction_model else {},
             )
         self.assertEqual(response.status_code, 201)
         payload = response.json()
@@ -83,6 +84,7 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_real_contract_is_scoped_and_publishes_only_after_success(self) -> None:
         upload = await self._upload()
+        self.assertEqual(upload["extraction_model"], "gemma4-e4b")
         version_id = upload["manuscript_version_id"]
 
         versions = await self.client.get(
@@ -174,7 +176,35 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
         job = (await self.client.get(f"/api/jobs/{upload['job_id']}")).json()
         self.assertEqual((job["status"], job["completed"], job["total"]), ("completed", 1, 1))
+        self.assertEqual(set(job["stage_durations_ms"]), {"parsing", "embedding", "indexing", "entity_extraction"})
+        self.assertIsNone(job["current_stage_elapsed_ms"])
+        self.assertIsNotNone(job["completed_at"])
         self.assertNotIn("object_key", job)
+
+    async def test_extractor_catalog_selection_and_validation(self) -> None:
+        catalog = (await self.client.get("/api/extraction-models")).json()
+        self.assertEqual(catalog["default"], "gemma4-e4b")
+        self.assertEqual(
+            {item["id"] for item in catalog["items"]},
+            {"gemma4-e4b", "gliner2.5-base-v1", "qwen3.5-9b"},
+        )
+        for item in catalog["items"]:
+            upload = await self._upload(extraction_model=item["id"])
+            self.assertEqual(upload["extraction_model"], item["id"])
+            detail = await self.client.get(
+                f"/api/projects/{self.project_id}/manuscripts/{upload['manuscript_version_id']}"
+            )
+            self.assertEqual(detail.json()["extraction_model"], item["id"])
+            self.assertNotIn("object_key", detail.json())
+        with patch("app.api.ingestion.create_manuscript_version", new=AsyncMock()) as create:
+            for invalid in ("qwen3.5-4b", "http://attacker/model", "unknown"):
+                response = await self.client.post(
+                    f"/api/projects/{self.project_id}/manuscripts",
+                    files={"file": ("story.txt", b"Text", "text/plain")},
+                    data={"extraction_model": invalid},
+                )
+                self.assertEqual(response.status_code, 422)
+            create.assert_not_awaited()
 
     async def test_queue_failure_is_safe_and_does_not_replace_current(self) -> None:
         with patch(

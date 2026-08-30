@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.project import Project
+from app.ai.extraction_models import ExtractionModel, default_extraction_model
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,13 @@ async def create_manuscript_version(
     filename: str,
     mime_type: str,
     stream: BinaryIO,
+    extraction_model: ExtractionModel | None = None,
 ) -> ManuscriptVersion:
+    selected_model = (
+        ExtractionModel(extraction_model)
+        if extraction_model is not None
+        else default_extraction_model()
+    )
     safe_name, size, content_hash = inspect_upload(filename, mime_type, stream)
     version_id = uuid.uuid4()
     key = object_key(project_id, version_id, PurePath(safe_name).suffix.lower())
@@ -115,6 +122,7 @@ async def create_manuscript_version(
             mime_type=mime_type,
             file_size=size,
             content_hash=content_hash,
+            extraction_model=selected_model.value,
         )
         session.add(version)
         await session.commit()

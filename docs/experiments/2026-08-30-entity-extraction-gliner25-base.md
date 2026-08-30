@@ -169,3 +169,14 @@ recall-first objective and custom `other` category.
    throughput requirement. Any routing policy, threshold tuning, label
    descriptions, or cascaded GLiNER-to-Gemma design requires a separate
    approved experiment.
+
+## Follow-up: explicit upload choice
+
+After observing a 38-minute full-manuscript ingestion job, the developer
+explicitly requested GLiNER2.5 Base as a selectable development extractor,
+alongside Gemma and Qwen3.5 9B. This supersedes the offline-only restriction
+above, not the default-model decision: Gemma remains the default. The same
+pinned GLiNER revision, labels and threshold are reused without tuning or
+automatic routing. Upload stores the chosen extractor on the manuscript
+version; UI copy communicates the measured recall trade-off. This integration
+does not establish a new quality ranking on full manuscripts.

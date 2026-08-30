@@ -1,12 +1,14 @@
 import uuid
+from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.projects import _project_or_404
+from app.ai.extraction_models import ExtractionModel, extraction_model_catalog
 from app.db.models.job_run import JobRun
 from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.narrative import Chapter
@@ -17,12 +19,18 @@ from app.schemas.ingestion import (
     ChapterDetailRead,
     ChapterRead,
     JobRead,
+    ExtractionModelCatalog,
     ManuscriptUploadRead,
     ManuscriptVersionRead,
 )
 
 router = APIRouter(tags=["ingestion"])
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+
+@router.get("/api/extraction-models", response_model=ExtractionModelCatalog)
+async def list_extraction_models() -> dict:
+    return extraction_model_catalog()
 
 
 async def _version_or_404(
@@ -48,12 +56,14 @@ async def upload_manuscript(
     project_id: uuid.UUID,
     file: Annotated[UploadFile, File()],
     session: Session,
+    extraction_model: Annotated[ExtractionModel | None, Form()] = None,
 ) -> ManuscriptUploadRead | JSONResponse:
     if not file.filename or not file.content_type:
         raise HTTPException(status_code=400, detail="The manuscript file is invalid")
     try:
         version = await create_manuscript_version(
-            session, project_id, file.filename, file.content_type, file.file
+            session, project_id, file.filename, file.content_type, file.file,
+            extraction_model=extraction_model,
         )
     except LookupError as exc:
         raise HTTPException(status_code=404, detail="Project not found") from exc
@@ -92,6 +102,7 @@ async def upload_manuscript(
         version=f"v{version.version_number}",
         job_id=job.id,
         status=job.status,
+        extraction_model=version.extraction_model,
     )
 
 
@@ -126,6 +137,12 @@ async def get_job(job_id: uuid.UUID, session: Session) -> JobRead:
     job = await session.get(JobRun, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    now = datetime.now(timezone.utc)
+    current_stage_elapsed_ms = (
+        max(0, round((now - job.stage_started_at).total_seconds() * 1000))
+        if job.status == "running" and job.stage_started_at is not None
+        else None
+    )
     return JobRead(
         id=job.id,
         status=job.status,
@@ -134,6 +151,12 @@ async def get_job(job_id: uuid.UUID, session: Session) -> JobRead:
         total=job.total_units,
         error_code=job.error_code,
         error_message_safe=job.error_message_safe,
+        created_at=job.created_at,
+        started_at=job.started_at,
+        completed_at=job.completed_at,
+        stage_started_at=job.stage_started_at,
+        stage_durations_ms=job.stage_durations_ms or {},
+        current_stage_elapsed_ms=current_stage_elapsed_ms,
     )
 
 

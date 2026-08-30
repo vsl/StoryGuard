@@ -206,6 +206,18 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(predicted, {(0, 5, "character")})
         self.assertEqual(invalid, 1)
 
+    def test_gliner_rejects_out_of_bounds_and_boolean_offsets(self) -> None:
+        class Extractor:
+            def extract_entities(self, *_args, **_kwargs):
+                return {"entities": {"character": [
+                    {"text": "Alice", "start": 0, "end": 999},
+                    {"text": "Alice", "start": False, "end": 5},
+                ]}}
+
+        predicted, invalid = extract_predictions(Extractor(), "Alice", 0.5)
+        self.assertEqual(predicted, set())
+        self.assertEqual(invalid, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,15 +1,17 @@
+import asyncio
 import uuid
 
 from sqlalchemy import delete, select
 
 from app.ai.entity_extraction import (
-    MODEL_ALIAS,
     ChapterMention,
     SourceChunk,
     deduplicate_mentions,
     extract_entities,
     to_chapter_mentions,
 )
+from app.ai.extraction_models import ExtractionModel, extraction_model_config
+from app.ai.gliner_extraction import GLINER_SCHEMA_VERSION, extract_gliner
 from app.db.models.entity_mention import EntityMention
 from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.narrative import Chapter, Chunk
@@ -26,6 +28,8 @@ async def extract_version_entities(
         version = await session.get(ManuscriptVersion, manuscript_version_id)
         if version is None or version.project_id != project_id:
             raise LookupError("Manuscript version not found in project")
+        selected_model = ExtractionModel(version.extraction_model)
+        config = extraction_model_config(selected_model)
         chunks = list(
             await session.scalars(
                 select(Chunk)
@@ -45,13 +49,18 @@ async def extract_version_entities(
     if not chunks:
         raise ValueError("Manuscript version has no chunks")
 
+    is_gliner = selected_model == ExtractionModel.GLINER
+    prompt_version = GLINER_SCHEMA_VERSION if is_gliner else PROMPT_VERSION
+    model_alias = selected_model.value if is_gliner else config["litellm_alias"]
     extracted: list[ChapterMention] = []
     for chunk in chunks:
-        result = await extract_entities(
-            chunk.text,
-            PROMPT_VERSION,
-            model_alias=MODEL_ALIAS,
-        )
+        if is_gliner:
+            chunk_mentions = await asyncio.to_thread(extract_gliner, chunk.text, config)
+        else:
+            result = await extract_entities(
+                chunk.text, prompt_version, model_alias=model_alias
+            )
+            chunk_mentions = result.mentions
         extracted.extend(
             to_chapter_mentions(
                 SourceChunk(
@@ -61,7 +70,7 @@ async def extract_version_entities(
                     scene_id=str(chunk.scene_id) if chunk.scene_id else None,
                     start_offset=chunk.start_offset,
                 ),
-                result.mentions,
+                chunk_mentions,
             )
         )
 
@@ -81,6 +90,8 @@ async def extract_version_entities(
         )
         if version is None or version.project_id != project_id:
             raise LookupError("Manuscript version scope changed during extraction")
+        if version.extraction_model != selected_model:
+            raise ValueError("Selected extractor changed during extraction")
         current_chunk_ids = set(
             await session.scalars(
                 select(Chunk.id).where(
@@ -108,8 +119,8 @@ async def extract_version_entities(
                     surface_text=mention.surface_text,
                     start_offset=mention.start_offset,
                     end_offset=mention.end_offset,
-                    prompt_version=PROMPT_VERSION,
-                    model_alias=MODEL_ALIAS,
+                    prompt_version=prompt_version,
+                    model_alias=model_alias,
                 )
                 for mention in mentions
             ]

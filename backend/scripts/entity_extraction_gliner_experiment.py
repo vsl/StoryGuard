@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from app.ai.entity_extraction import EntityType
+from app.ai.gliner_extraction import LABELS, extract_predictions
 from scripts.entity_extraction_experiment import load_cases, summarize_rows
 
 
@@ -18,7 +18,6 @@ ROOT = Path(__file__).parents[2]
 FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction_model_eval.jsonl"
 DEFAULT_MODELS_CONFIG = ROOT / "config" / "models.yaml"
 EXPERIMENT_ID = "entity-extraction-gliner25-base-v1-20260830"
-LABELS = tuple(entity_type.value for entity_type in EntityType)
 WARMUP_TEXT = "Ari entered Stonehaven."
 
 
@@ -32,44 +31,6 @@ def model_registry() -> tuple[Path, dict, str]:
 def _peak_rss_mb() -> float:
     rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return rss / (1024 * 1024) if sys.platform == "darwin" else rss / 1024
-
-
-def extract_predictions(model: object, text: str, threshold: float) -> tuple[set, int]:
-    result = model.extract_entities(
-        text,
-        list(LABELS),
-        threshold=threshold,
-        include_confidence=True,
-        include_spans=True,
-    )
-    if not isinstance(result, dict) or not isinstance(result.get("entities"), dict):
-        raise ValueError("GLiNER returned an invalid entity payload")
-
-    predictions = set()
-    invalid_spans = 0
-    for entity_type, mentions in result["entities"].items():
-        if entity_type not in LABELS or not isinstance(mentions, list):
-            invalid_spans += 1
-            continue
-        for mention in mentions:
-            if not isinstance(mention, dict):
-                invalid_spans += 1
-                continue
-            surface = mention.get("text")
-            start = mention.get("start")
-            end = mention.get("end")
-            if (
-                not isinstance(surface, str)
-                or not isinstance(start, int)
-                or not isinstance(end, int)
-                or start < 0
-                or end <= start
-                or text[start:end] != surface
-            ):
-                invalid_spans += 1
-                continue
-            predictions.add((start, end, entity_type))
-    return predictions, invalid_spans
 
 
 def evaluate(model: object, cases: list[dict], model_name: str, threshold: float) -> dict:

@@ -30,6 +30,10 @@ class ManuscriptVersion(Base):
         ),
         UniqueConstraint("project_id", "version_number"),
         UniqueConstraint("object_key"),
+        CheckConstraint(
+            "extraction_model IN ('gemma4-e4b', 'gliner2.5-base-v1', 'qwen3.5-9b')",
+            name="ck_manuscript_extraction_model",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -49,6 +53,9 @@ class ManuscriptVersion(Base):
         String(32), default="v1", server_default="v1"
     )
     parse_metadata: Mapped[dict | None] = mapped_column(JSON)
+    extraction_model: Mapped[str] = mapped_column(
+        String(64), default="gemma4-e4b", server_default="gemma4-e4b"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

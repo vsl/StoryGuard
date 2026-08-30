@@ -3,6 +3,7 @@ import io
 import os
 import unittest
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 from docx import Document
@@ -252,11 +253,12 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         await engine.dispose()
 
     async def _version_and_job(
-        self, name: str, data: bytes
+        self, name: str, data: bytes, extraction_model: str | None = None
     ) -> tuple[ManuscriptVersion, JobRun]:
         async with SessionLocal() as session:
             version = await create_manuscript_version(
-                session, self.project_id, name, "text/plain", io.BytesIO(data)
+                session, self.project_id, name, "text/plain", io.BytesIO(data),
+                extraction_model=extraction_model,
             )
             self.object_keys.append(version.object_key)
             job = JobRun(
@@ -280,6 +282,12 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
         ), patch(
             "app.entity_mentions.extract_entities",
             side_effect=fake_entity_extraction,
+        ), patch(
+            "app.queue.tasks.ingestion._now",
+            side_effect=[
+                datetime(2026, 8, 30, tzinfo=timezone.utc) + timedelta(seconds=step)
+                for step in range(5)
+            ],
         ):
             await run_parse_and_ingest(job.id)
             await run_parse_and_ingest(job.id)
@@ -330,6 +338,16 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 )
             }
         self.assertEqual((persisted_job.status, persisted_job.attempts), ("completed", 1))
+        self.assertEqual(
+            persisted_job.stage_durations_ms,
+            {
+                "parsing": 1000,
+                "embedding": 1000,
+                "indexing": 1000,
+                "entity_extraction": 1000,
+            },
+        )
+        self.assertIsNone(persisted_job.stage_started_at)
         self.assertEqual((chapter_count, scene_count, chunk_count), (1, 2, 2))
         self.assertEqual(embedding_versions, {"embeddinggemma-v1"})
         self.assertEqual(persisted_version.status, "ready")
@@ -353,7 +371,7 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 (mention.prompt_version, mention.model_alias)
                 for mention in entity_mentions
             },
-            {("entity_extractor:v2", "storyguard-fast")},
+            {("entity_extractor:v2", "storyguard-entity-gemma4-e4b")},
         )
 
         bad_version, bad_job = await self._version_and_job("bad.txt", b"\xff")
@@ -415,6 +433,7 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             (entity_version.status, entity_job.status, entity_job.error_code),
             ("failed", "failed", "ENTITY_EXTRACTION_FAILED"),
         )
+        self.assertIn("entity_extraction", entity_job.stage_durations_ms)
         self.assertNotIn("private", entity_job.error_message_safe)
         self.assertEqual(project.current_manuscript_version_id, version.id)
 
@@ -440,6 +459,50 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
             await session.delete(other_project)
             await session.commit()
         self.assertEqual(chunk_count, 0)
+
+    async def test_selected_extractor_and_retry_do_not_fall_back(self) -> None:
+        for selected, expected_alias, expected_prompt in (
+            ("qwen3.5-9b", "storyguard-entity-qwen35-9b", "entity_extractor:v2"),
+            ("gliner2.5-base-v1", "gliner2.5-base-v1", "gliner2.5-base-v1:labels-v1"),
+        ):
+            version, job = await self._version_and_job(
+                "story.txt", b"Chapter 1\nAlice waited.", selected
+            )
+            with (
+                patch("app.queue.tasks.ingestion.embed_documents", side_effect=fake_embeddings),
+                patch("app.entity_mentions.extract_entities", side_effect=fake_entity_extraction) as llm,
+                patch("app.entity_mentions.extract_gliner") as gliner,
+            ):
+                gliner.return_value = (await fake_entity_extraction("Alice waited.", "unused")).mentions
+                if selected == "gliner2.5-base-v1":
+                    gliner.side_effect = RuntimeError("private runtime error")
+                    with self.assertRaises(RuntimeError):
+                        await run_parse_and_ingest(job.id)
+                    llm.assert_not_called()
+                    async with SessionLocal() as session:
+                        failed = await session.get(JobRun, job.id)
+                        self.assertEqual(failed.error_code, "ENTITY_EXTRACTION_FAILED")
+                        self.assertIsNone(failed.stage_started_at)
+                        self.assertIn("entity_extraction", failed.stage_durations_ms)
+                    gliner.side_effect = None
+                await run_parse_and_ingest(job.id)
+                if selected == "gliner2.5-base-v1":
+                    llm.assert_not_called()
+                    self.assertEqual(gliner.call_count, 2)
+                else:
+                    gliner.assert_not_called()
+                    self.assertEqual(llm.call_args.kwargs["model_alias"], expected_alias)
+            async with SessionLocal() as session:
+                rows = list(await session.scalars(select(EntityMention).where(
+                    EntityMention.manuscript_version_id == version.id
+                )))
+                persisted_job = await session.get(JobRun, job.id)
+                persisted_version = await session.get(ManuscriptVersion, version.id)
+            self.assertEqual(persisted_version.extraction_model, selected)
+            self.assertEqual(persisted_job.status, "completed")
+            self.assertEqual(persisted_job.attempts, 2 if selected == "gliner2.5-base-v1" else 1)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual((rows[0].model_alias, rows[0].prompt_version), (expected_alias, expected_prompt))
 
 
 if __name__ == "__main__":

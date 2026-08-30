@@ -11,6 +11,30 @@ const project = {
 };
 
 async function mockProject(page: Page) {
+  await page.route("**/api/extraction-models", (route) =>
+    route.fulfill({
+      json: {
+        default: "gemma4-e4b",
+        items: [
+          {
+            id: "gemma4-e4b",
+            label: "gemma4:e4b",
+            description: "Quality default",
+          },
+          {
+            id: "gliner2.5-base-v1",
+            label: "GLiNER2.5 Base",
+            description: "Fast CPU extraction",
+          },
+          {
+            id: "qwen3.5-9b",
+            label: "Qwen3.5 9B",
+            description: "Local alternative",
+          },
+        ],
+      },
+    }),
+  );
   await page.route("**/api/projects", async (route) => {
     if (route.request().method() === "POST")
       await route.fulfill({ status: 201, json: project });
@@ -42,12 +66,28 @@ test("create story and upload manuscript", async ({ page }) => {
   await page.goto("/projects/new");
   await page.getByLabel("Story title").fill("The Last Signal");
   await page.getByRole("button", { name: "Create Story" }).click();
+  await expect(page.getByLabel("Entity extraction model")).toHaveValue(
+    "gemma4-e4b",
+  );
+  await expect(
+    page.getByLabel("Entity extraction model").locator("option"),
+  ).toHaveCount(3);
+  await page
+    .getByLabel("Entity extraction model")
+    .selectOption("gliner2.5-base-v1");
   await page.locator('input[type="file"]').setInputFiles({
     name: "story.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("Chapter 1"),
   });
+  const upload = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" && request.url().endsWith("/manuscripts"),
+  );
   await page.getByRole("button", { name: "Upload manuscript" }).click();
+  expect((await upload).postData()).toContain(
+    'name="extraction_model"\r\n\r\ngliner2.5-base-v1',
+  );
   await expect(page.getByText("queued", { exact: true })).toBeVisible();
 });
 

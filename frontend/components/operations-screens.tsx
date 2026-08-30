@@ -51,6 +51,8 @@ type Job = {
   progress?: { completed?: number; total?: number };
   error?: string;
   error_message_safe?: string;
+  stage_durations_ms?: Record<string, number>;
+  current_stage_elapsed_ms?: number;
 };
 type ManuscriptVersion = {
   id: string;
@@ -62,6 +64,11 @@ type ManuscriptVersion = {
   pipeline_version?: string;
   created_at?: string;
   ready_at?: string;
+  extraction_model?: string;
+};
+type ExtractionModelCatalog = {
+  default: string;
+  items: { id: string; label: string; description: string }[];
 };
 type AnalysisRun = {
   id?: string;
@@ -104,6 +111,12 @@ function metricValue(metric: string, value?: number) {
   return value.toFixed(4);
 }
 
+function formatDuration(milliseconds: number) {
+  if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+  const seconds = Math.floor(milliseconds / 1000);
+  return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
 export function VersionsScreen({ projectId }: { projectId: string }) {
   const welcome = useSearchParams().get("welcome") === "1";
   const project = useProject(projectId);
@@ -111,6 +124,12 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
     ManuscriptVersion[] | { items?: ManuscriptVersion[] }
   >(["versions", projectId], `/projects/${projectId}/manuscripts`);
   const [file, setFile] = useState<File | null>(null);
+  const models = useEndpoint<ExtractionModelCatalog>(
+    ["extraction-models"],
+    "/extraction-models",
+  );
+  const [selectedModel, setSelectedModel] = useState("");
+  const extractionModel = selectedModel || models.data?.default || "";
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [jobId, setJobId] = useState("");
@@ -134,11 +153,12 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
 
   function upload(event: FormEvent) {
     event.preventDefault();
-    if (!file) return;
+    if (!file || !models.data || models.error || !extractionModel) return;
     setUploadError("");
     setUploadProgress(0);
     const form = new FormData();
     form.set("file", file);
+    form.set("extraction_model", extractionModel);
     const request = new XMLHttpRequest();
     request.open("POST", `/api/projects/${projectId}/manuscripts`);
     request.upload.onprogress = (progress) => {
@@ -188,7 +208,7 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             ? "Your story is ready for a manuscript"
             : "Manuscript Versions"
         }
-        description="Uploading a new version parses its chapters and rebuilds the manuscript search index. The previous ready version stays current until processing succeeds."
+        description="Uploading parses chapters, rebuilds the search index, and extracts entity mentions with your chosen model. The previous ready version stays current until processing succeeds."
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card className="p-6">
@@ -232,6 +252,14 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
                     : "Upload date unavailable"}{" "}
                   · {version.pipeline_version ?? "pipeline —"}
                 </p>
+                {version.extraction_model && (
+                  <p className="mt-1 text-xs text-muted">
+                    Extractor:{" "}
+                    {models.data?.items.find(
+                      (model) => model.id === version.extraction_model,
+                    )?.label ?? version.extraction_model}
+                  </p>
+                )}
               </div>
               <Badge>{version.status ?? "unknown"}</Badge>
               <Button variant="ghost" disabled aria-label="Delete old version">
@@ -245,6 +273,40 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             Upload new version
           </h2>
           <form className="mt-5" onSubmit={upload}>
+            <label className="mb-4 block text-sm font-semibold">
+              Entity extraction model
+              <select
+                className={`${inputClass} mt-2`}
+                value={extractionModel}
+                disabled={
+                  !models.data ||
+                  !!models.error ||
+                  (uploadProgress !== null && uploadProgress < 100)
+                }
+                onChange={(event) => setSelectedModel(event.target.value)}
+                aria-describedby="extraction-model-description"
+              >
+                {!models.data && <option value="">Loading models…</option>}
+                {models.data?.items.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                    {model.id === models.data?.default ? " (default)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p
+              id="extraction-model-description"
+              className="mb-4 text-xs text-muted"
+            >
+              {
+                models.data?.items.find((model) => model.id === extractionModel)
+                  ?.description
+              }
+            </p>
+            {models.error && (
+              <ErrorState error={models.error} retry={() => models.refetch()} />
+            )}
             <label
               className="grid min-h-44 cursor-pointer place-items-center rounded-xl border-2 border-dashed border-[#b9c9c3] bg-[#fafbf9] p-5 text-center hover:border-[var(--brand)]"
               onDragOver={(event) => event.preventDefault()}
@@ -296,7 +358,11 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             <Button
               className="mt-4 w-full"
               disabled={
-                !file || (uploadProgress !== null && uploadProgress < 100)
+                !file ||
+                !models.data ||
+                !!models.error ||
+                !extractionModel ||
+                (uploadProgress !== null && uploadProgress < 100)
               }
             >
               <FileUp className="size-4" />
@@ -326,6 +392,25 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
               <p className="mt-3 text-sm font-semibold">
                 {job.data.stage?.replaceAll("_", " ") ?? "Waiting for worker"}
               </p>
+              {job.data.current_stage_elapsed_ms !== undefined &&
+                job.data.current_stage_elapsed_ms !== null && (
+                  <p className="mt-1 text-xs text-muted">
+                    Current stage:{" "}
+                    {formatDuration(job.data.current_stage_elapsed_ms)}
+                  </p>
+                )}
+              {!!Object.keys(job.data.stage_durations_ms ?? {}).length && (
+                <dl className="mt-3 space-y-1 text-xs text-muted">
+                  {Object.entries(job.data.stage_durations_ms ?? {}).map(
+                    ([stage, duration]) => (
+                      <div key={stage} className="flex justify-between gap-3">
+                        <dt>{stage.replaceAll("_", " ")}</dt>
+                        <dd>{formatDuration(duration)}</dd>
+                      </div>
+                    ),
+                  )}
+                </dl>
+              )}
               {job.data.status === "failed" && (
                 <p className="mt-2 text-sm text-[var(--danger)]">
                   {job.data.error_message_safe ??

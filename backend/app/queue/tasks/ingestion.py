@@ -27,6 +27,25 @@ def _download(key: str) -> bytes:
         response.release_conn()
 
 
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _finish_stage(job: JobRun, now: datetime) -> None:
+    if job.stage and job.stage_started_at:
+        durations = dict(job.stage_durations_ms or {})
+        elapsed_ms = max(0, round((now - job.stage_started_at).total_seconds() * 1000))
+        durations[job.stage] = durations.get(job.stage, 0) + elapsed_ms
+        job.stage_durations_ms = durations
+    job.stage_started_at = None
+
+
+def _start_stage(job: JobRun, stage: str, now: datetime) -> None:
+    _finish_stage(job, now)
+    job.stage = stage
+    job.stage_started_at = now
+
+
 async def _mark_failed(
     job_id: uuid.UUID, error_code: str, error_message_safe: str
 ) -> None:
@@ -34,10 +53,12 @@ async def _mark_failed(
         job = await session.get(JobRun, job_id, with_for_update=True)
         if job is None or job.status == "completed":
             return
+        now = _now()
+        _finish_stage(job, now)
         job.status = "failed"
         job.error_code = error_code
         job.error_message_safe = error_message_safe
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = now
         if job.manuscript_version_id is not None:
             version = await session.get(
                 ManuscriptVersion, job.manuscript_version_id, with_for_update=True
@@ -64,10 +85,11 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             raise LookupError("Manuscript version not found")
         if version.project_id != job.project_id:
             raise ValueError("Job and manuscript version scopes do not match")
+        now = _now()
         job.status = "running"
-        job.stage = "parsing"
+        _start_stage(job, "parsing", now)
         job.attempts += 1
-        job.started_at = job.started_at or datetime.now(timezone.utc)
+        job.started_at = job.started_at or now
         job.completed_at = None
         job.error_code = job.error_message_safe = None
         version.status = "processing"
@@ -139,7 +161,7 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             await session.flush()
 
             version.parse_metadata = parsed.metadata
-            job.stage = "embedding"
+            _start_stage(job, "embedding", _now())
     except Exception:
         await _mark_failed(
             job_id,
@@ -184,7 +206,7 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             job = await session.get(JobRun, job_id, with_for_update=True)
             if job is None or job.manuscript_version_id != version_id:
                 raise ValueError("Job scope changed during embedding")
-            job.stage = "indexing"
+            _start_stage(job, "indexing", _now())
         await replace_version_chunks(
             str(project_id),
             str(version_id),
@@ -207,7 +229,7 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
                 .where(Chunk.manuscript_version_id == version.id)
                 .values(embedding_version=EMBEDDING_VERSION)
             )
-            job.stage = "entity_extraction"
+            _start_stage(job, "entity_extraction", _now())
     except Exception:
         await _mark_failed(
             job_id,
@@ -230,10 +252,12 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
                 or version.project_id != job.project_id
             ):
                 raise ValueError("Job scope changed during entity extraction")
+            now = _now()
+            _finish_stage(job, now)
             job.status = "completed"
             job.stage = "entities_extracted"
             job.completed_units = job.total_units = len(chapters)
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = now
             version.status = "ready"
             version.ready_at = job.completed_at
             project.current_manuscript_version_id = version.id
