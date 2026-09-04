@@ -13,9 +13,9 @@ from scripts.entity_extraction_experiment import evaluate, load_cases
 
 
 ROOT = Path(__file__).parents[2]
-FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction_model_eval.jsonl"
+FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction_model_eval_v3.jsonl"
 DEFAULT_MODELS_CONFIG = ROOT / "config" / "models.yaml"
-PROMPT_VERSION = "entity_extractor:v2"
+PROMPT_VERSION = "entity_extractor:v3"
 WARMUP_TEXT = "Ari entered Stonehaven."
 
 

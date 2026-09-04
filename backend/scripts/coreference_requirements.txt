@@ -1,0 +1,8 @@
+# Isolated Python 3.11 environment only; never install into the application venv.
+xcore-coref==0.1.2
+torch==2.13.0
+transformers==5.16.1
+pytorch-lightning==2.6.5
+spacy==3.8.16
+huggingface-hub==1.29.0
+langsmith==0.11.1

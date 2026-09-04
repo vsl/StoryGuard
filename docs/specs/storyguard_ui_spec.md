@@ -636,8 +636,11 @@ Tabs:
 
 ```text
 Characters
+Facilities
+Countries & cities
 Locations
-Objects
+Organizations
+Vehicles
 Relationships
 Facts
 Events
@@ -650,6 +653,11 @@ Each tab must support:
 - empty state;
 - loading state;
 - evidence navigation.
+
+On desktop, the entity list and detail area scroll independently. Selecting an
+entity preserves the list position, returns the detail area to its top, and
+shows the selected entity before the entity-resolution workspace. Mobile keeps
+the normal single-column document flow.
 
 ---
 
@@ -665,6 +673,9 @@ John Hale
 ```
 
 Selecting a character opens details.
+
+Do not render the canonical name again under Aliases. Identical normalized
+surface forms remain in the backend audit but are omitted from the display.
 
 ## Character fields
 
@@ -705,6 +716,19 @@ Show evidence
 ---
 
 # 15. Entity Resolution UI
+
+The default pipeline label is **xCoRe + Gemma**. Show actual counts of
+**merges applied without Gemma** and **pairs sent to Gemma**, not estimated
+probabilities or request savings. While coreference loads/scans, show that stage
+and elapsed time; scanning may exceed one minute. Keep Stop available. Explain
+that completed groups are cached for Resume and unfinished scans are discarded.
+If coreference fails, explicitly say processing continues with Gemma. Predicted
+groups may be wrong; do not describe them as certain. Existing candidate limits
+and review/conflict/error states remain visible.
+
+Resolution continues automatically across bounded worker batches until no
+eligible comparisons remain or the user presses Stop. The batch boundary is a
+worker safety limit, not a user action: do not require repeated Resume clicks.
 
 When StoryGuard detects possible duplicate entities:
 
@@ -893,7 +917,7 @@ Character attribute
 Timeline
 Relationship
 Character knowledge
-Object state
+Entity state
 Location
 World rule
 Other
@@ -2250,4 +2274,3 @@ The coding agent must not turn StoryGuard into:
 The frontend should support the core product idea:
 
 **StoryGuard protects story consistency and explains every important AI claim with evidence from the manuscript.**
-

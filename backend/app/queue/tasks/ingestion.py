@@ -3,7 +3,8 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings import EMBEDDING_VERSION, embed_documents
 from app.db.models.job_run import JobRun
@@ -46,13 +47,41 @@ def _start_stage(job: JobRun, stage: str, now: datetime) -> None:
     job.stage_started_at = now
 
 
+def cancel_ingestion(job: JobRun, version: ManuscriptVersion, reason: str) -> None:
+    """Caller holds the project, job, and version locks, in that order."""
+    now = _now()
+    _finish_stage(job, now)
+    job.status = version.status = "cancelled"
+    job.completed_at = now
+    job.error_code = reason
+    job.error_message_safe = (
+        "Processing was replaced by a newer upload."
+        if reason == "SUPERSEDED"
+        else "Processing was cancelled."
+    )
+
+
+async def latest_accepted_version(session: AsyncSession, project_id: uuid.UUID) -> int:
+    return await session.scalar(
+        select(func.coalesce(func.max(ManuscriptVersion.version_number), 0))
+        .join(JobRun, JobRun.manuscript_version_id == ManuscriptVersion.id)
+        .where(
+            ManuscriptVersion.project_id == project_id,
+            JobRun.project_id == project_id,
+            JobRun.job_type == "parse_and_ingest_manuscript",
+            JobRun.stage.is_distinct_from("awaiting_dispatch"),
+            JobRun.error_code.is_distinct_from("QUEUE_UNAVAILABLE"),
+        )
+    )
+
+
 async def _mark_failed(
     job_id: uuid.UUID, error_code: str, error_message_safe: str
-) -> None:
+) -> bool:
     async with SessionLocal() as session, session.begin():
         job = await session.get(JobRun, job_id, with_for_update=True)
-        if job is None or job.status == "completed":
-            return
+        if job is None or job.status in {"completed", "cancelled"}:
+            return False
         now = _now()
         _finish_stage(job, now)
         job.status = "failed"
@@ -65,16 +94,18 @@ async def _mark_failed(
             )
             if version is not None:
                 version.status = "failed"
+        return True
 
 
 async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
     async with SessionLocal() as session, session.begin():
-        job = await session.scalar(
-            select(JobRun).where(JobRun.id == job_id).with_for_update()
-        )
+        job = await session.get(JobRun, job_id)
         if job is None:
             raise LookupError("Job not found")
-        if job.status == "completed":
+        # Match upload/cancel/promotion lock order; dispatch commits before work starts.
+        await session.get(Project, job.project_id, with_for_update=True)
+        await session.refresh(job, with_for_update=True)
+        if job.status in {"completed", "cancelled"} or job.stage == "awaiting_dispatch":
             return
         if job.manuscript_version_id is None:
             raise ValueError("Parsing job requires a manuscript version")
@@ -85,6 +116,12 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             raise LookupError("Manuscript version not found")
         if version.project_id != job.project_id:
             raise ValueError("Job and manuscript version scopes do not match")
+        if version.status == "cancelled":
+            cancel_ingestion(job, version, "USER_CANCELLED")
+            return
+        if version.version_number < await latest_accepted_version(session, job.project_id):
+            cancel_ingestion(job, version, "SUPERSEDED")
+            return
         now = _now()
         job.status = "running"
         _start_stage(job, "parsing", now)
@@ -102,6 +139,8 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
 
         async with SessionLocal() as session, session.begin():
             job = await session.get(JobRun, job_id, with_for_update=True)
+            if job is None or job.status == "cancelled":
+                return
             version = await session.get(
                 ManuscriptVersion, version_id, with_for_update=True
             )
@@ -163,12 +202,13 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             version.parse_metadata = parsed.metadata
             _start_stage(job, "embedding", _now())
     except Exception:
-        await _mark_failed(
+        if await _mark_failed(
             job_id,
             "MANUSCRIPT_PARSING_FAILED",
             "The manuscript could not be parsed.",
-        )
-        raise
+        ):
+            raise
+        return
 
     try:
         chapter_ordinals = {chapter.id: chapter.ordinal for chapter in chapters}
@@ -194,16 +234,19 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             document["embedding_version"] = EMBEDDING_VERSION
             document["embedding"] = vector
     except Exception:
-        await _mark_failed(
+        if await _mark_failed(
             job_id,
             "EMBEDDING_FAILED",
             "The manuscript embeddings could not be created.",
-        )
-        raise
+        ):
+            raise
+        return
 
     try:
         async with SessionLocal() as session, session.begin():
             job = await session.get(JobRun, job_id, with_for_update=True)
+            if job is not None and job.status == "cancelled":
+                return
             if job is None or job.manuscript_version_id != version_id:
                 raise ValueError("Job scope changed during embedding")
             _start_stage(job, "indexing", _now())
@@ -214,12 +257,12 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
         )
         async with SessionLocal() as session, session.begin():
             job = await session.get(JobRun, job_id, with_for_update=True)
+            if job is not None and job.status == "cancelled":
+                return
             version = await session.get(ManuscriptVersion, version_id, with_for_update=True)
-            project = await session.get(Project, project_id, with_for_update=True)
             if (
                 job is None
                 or version is None
-                or project is None
                 or job.manuscript_version_id != version.id
                 or version.project_id != job.project_id
             ):
@@ -231,19 +274,22 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             )
             _start_stage(job, "entity_extraction", _now())
     except Exception:
-        await _mark_failed(
+        if await _mark_failed(
             job_id,
             "ELASTICSEARCH_INDEXING_FAILED",
             "The manuscript search index could not be created.",
-        )
-        raise
+        ):
+            raise
+        return
 
     try:
         await extract_version_entities(project_id, version_id)
         async with SessionLocal() as session, session.begin():
-            job = await session.get(JobRun, job_id, with_for_update=True)
-            version = await session.get(ManuscriptVersion, version_id, with_for_update=True)
             project = await session.get(Project, project_id, with_for_update=True)
+            job = await session.get(JobRun, job_id, with_for_update=True)
+            if job is not None and job.status == "cancelled":
+                return
+            version = await session.get(ManuscriptVersion, version_id, with_for_update=True)
             if (
                 job is None
                 or version is None
@@ -252,6 +298,13 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
                 or version.project_id != job.project_id
             ):
                 raise ValueError("Job scope changed during entity extraction")
+            if version.version_number < await latest_accepted_version(session, project_id):
+                cancel_ingestion(job, version, "SUPERSEDED")
+                return
+            current = (
+                await session.get(ManuscriptVersion, project.current_manuscript_version_id)
+                if project.current_manuscript_version_id else None
+            )
             now = _now()
             _finish_stage(job, now)
             job.status = "completed"
@@ -260,14 +313,15 @@ async def run_parse_and_ingest(job_id: uuid.UUID) -> None:
             job.completed_at = now
             version.status = "ready"
             version.ready_at = job.completed_at
-            project.current_manuscript_version_id = version.id
+            if current is None or current.version_number < version.version_number:
+                project.current_manuscript_version_id = version.id
     except Exception:
-        await _mark_failed(
+        if await _mark_failed(
             job_id,
             "ENTITY_EXTRACTION_FAILED",
             "The manuscript entities could not be extracted.",
-        )
-        raise
+        ):
+            raise
 
 
 @broker.task(retry_on_error=True)

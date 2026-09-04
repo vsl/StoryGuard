@@ -7,7 +7,7 @@ from app.ai.entity_extraction import EntityExtractionError, EntityType, Resolved
 
 
 LABELS = tuple(entity_type.value for entity_type in EntityType)
-GLINER_SCHEMA_VERSION = "gliner2.5-base-v1:labels-v1"
+GLINER_SCHEMA_VERSION = "gliner2.5-base-v1:labels-v2"
 _INFERENCE_LOCK = Lock()
 
 

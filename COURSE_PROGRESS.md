@@ -25,10 +25,11 @@ completed_lessons:
   - "4.1 LangSmith tracing"
   - "4.2 AI Experiment Lab"
   - "5.1 Entity extraction"
+  - "5.2 Entity resolution"
 
 current_lesson:
-  id: "5.2"
-  title: "Entity resolution"
+  id: "5.3"
+  title: "Facts / events / relationships"
   status: "not_started"
 
 current_lesson_state:

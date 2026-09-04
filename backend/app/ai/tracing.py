@@ -5,12 +5,30 @@ from dataclasses import asdict, is_dataclass
 from functools import lru_cache
 from typing import Any
 
-from langsmith import traceable
+from langsmith import get_current_run_tree, traceable
 
 
 LOGGER = logging.getLogger(__name__)
 TRACE_CONTENT_MODES = {"minimal", "redacted", "full"}
 ID_FIELDS = {"chunk_id", "project_id", "manuscript_version_id", "chapter_id", "scene_id"}
+
+
+def annotate_trace(*, metadata: dict | None = None, outputs: dict | None = None,
+                   error_code: str | None = None) -> str | None:
+    """Attach caller-allowlisted diagnostics; telemetry must never stop domain work."""
+    try:
+        run = get_current_run_tree()
+        if run is not None:
+            if metadata:
+                run.add_metadata(metadata)
+            if outputs:
+                run.add_outputs(outputs)
+            if error_code:
+                run.error = error_code
+            return str(run.id)
+    except Exception:
+        LOGGER.warning("LangSmith annotation unavailable")
+    return None
 
 
 @lru_cache(maxsize=1)

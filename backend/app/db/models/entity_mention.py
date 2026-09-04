@@ -10,7 +10,7 @@ class EntityMention(Base):
     __tablename__ = "entity_mentions"
     __table_args__ = (
         CheckConstraint(
-            "entity_type IN ('character', 'location', 'object', 'organization', 'other')",
+            "entity_type IN ('character', 'facility', 'gpe', 'location', 'organization', 'vehicle')",
             name="ck_entity_mention_type",
         ),
         CheckConstraint(
@@ -27,6 +27,10 @@ class EntityMention(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # Original identity anchor: effective canonical identity follows Entity.merged_into_id.
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("entities.id", ondelete="SET NULL"), index=True
+    )
     manuscript_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("manuscript_versions.id", ondelete="CASCADE"), index=True
     )

@@ -1,5 +1,17 @@
 models:
   llms:
+    entity_resolution:
+      pipeline: coreference_gemma
+      auto_apply: true
+      request_timeout_seconds: 180
+      default: gemma4-e4b
+      available:
+        gemma4-e4b:
+          provider: ollama
+          provider_model: gemma4:e4b
+          digest: c6eb396dbd59
+          litellm_alias: storyguard-entity-resolution
+          max_output_tokens: 1536
     entity_extraction:
       default: gemma4-e4b
       default_alias: storyguard-fast

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { EvidenceDrawer } from "@/components/evidence-drawer";
 import { EntityResolutionPanel } from "@/components/entity-resolution";
@@ -462,10 +462,22 @@ export function ManuscriptScreen({ projectId }: { projectId: string }) {
   );
 }
 
+const entityTabTypes: Record<string, string> = {
+  characters: "character",
+  facilities: "facility",
+  settlements: "gpe",
+  locations: "location",
+  organizations: "organization",
+  vehicles: "vehicle",
+};
+
 const bibleTabs = [
   "characters",
+  "facilities",
+  "settlements",
   "locations",
-  "objects",
+  "organizations",
+  "vehicles",
   "relationships",
   "facts",
   "events",
@@ -486,14 +498,16 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
   const [factChapter, setFactChapter] = useState("");
   const [factConfidence, setFactConfidence] = useState("");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
-  const endpoint = tab === "objects" ? "objects" : tab;
+  const detailPane = useRef<HTMLElement>(null);
+  const entityType = entityTabTypes[tab];
+  const endpoint = entityType && tab !== "characters" ? `entities?type=${entityType}` : tab;
   const result = useEndpoint<
     Entity[] | Fact[] | StoryEvent[] | { items?: Entity[] }
   >(["story-bible", projectId, tab], `/projects/${projectId}/${endpoint}`);
   const detail = useEndpoint<Entity>(
     ["entity", projectId, tab, selected],
-    `/projects/${projectId}/${tab}/${selected}`,
-    !!selected && (tab === "characters" || tab === "locations"),
+    `/projects/${projectId}/${tab === "characters" ? "characters" : "entities"}/${selected}`,
+    !!selected && !!entityType,
   );
   const rawItems = getList(result.data as Entity[] | { items?: Entity[] });
   const items = rawItems.filter((item) => {
@@ -524,6 +538,10 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
     if (id) next.set("selected", id);
     router.replace(`?${next}`);
   }
+  function selectEntity(id: string) {
+    detailPane.current?.scrollTo({ top: 0 });
+    navigate(tab, id);
+  }
   return (
     <>
       <PageHeader
@@ -539,13 +557,16 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
               onClick={() => navigate(item)}
               className={`whitespace-nowrap border-b-2 px-4 py-4 text-sm font-semibold capitalize ${tab === item ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-muted"}`}
             >
-              {item}
+              {item === "settlements" ? "Countries & cities" : item}
             </button>
           ))}
         </div>
-        <div className="grid min-h-[600px] lg:grid-cols-[300px_minmax(0,1fr)]">
-          <section className="border-b border-[var(--line)] bg-[#fafbf9] lg:border-b-0 lg:border-r">
-            <div className="p-4">
+        <div className="grid min-h-[600px] lg:h-[calc(100vh-10rem)] lg:grid-cols-[300px_minmax(0,1fr)]">
+          <section
+            aria-label={`${tab} list`}
+            className="border-b border-[var(--line)] bg-[#fafbf9] lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r"
+          >
+            <div className="sticky top-0 z-10 bg-[#fafbf9] p-4">
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -608,7 +629,11 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
             {!result.isLoading && !result.error && !items.length && (
               <EmptyState
                 title={`No ${tab} yet`}
-                description="Process a manuscript to build this part of the Story Bible."
+                description={
+                  entityType
+                    ? "Run Resolve entities to initialize identities from the extracted mentions."
+                    : "This part of the Story Bible depends on a later course capability."
+                }
               />
             )}
             <div className="space-y-1 p-2">
@@ -624,7 +649,8 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
                 return (
                   <button
                     key={id || label}
-                    onClick={() => navigate(tab, id)}
+                    onClick={() => selectEntity(id)}
+                    aria-current={selected === id ? "true" : undefined}
                     className={`w-full rounded-lg px-3 py-3 text-left ${selected === id ? "bg-[var(--brand-soft)]" : "hover:bg-[#eef1ef]"}`}
                   >
                     <p className="font-semibold">{label}</p>
@@ -642,13 +668,11 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
               })}
             </div>
           </section>
-          <section className="p-5 sm:p-8">
-            {tab === "characters" && (
-              <EntityResolutionPanel
-                projectId={projectId}
-                onEvidence={setEvidence}
-              />
-            )}
+          <section
+            ref={detailPane}
+            aria-label="Story Bible details"
+            className="p-5 sm:p-8 lg:min-h-0 lg:overflow-y-auto"
+          >
             {!selected && (
               <EmptyState
                 title={`Select ${tab === "facts" ? "a fact" : "an item"}`}
@@ -670,6 +694,14 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
                   onEvidence={setEvidence}
                 />
               )}
+            {entityType && (
+              <div className={selected ? "mt-8 border-t border-[var(--line)] pt-8" : "mt-8"}>
+                <EntityResolutionPanel
+                  projectId={projectId}
+                  onEvidence={setEvidence}
+                />
+              </div>
+            )}
           </section>
         </div>
       </Card>
@@ -714,6 +746,19 @@ function EntityDetail({
           <span className="text-sm text-muted">Aliases</span>
           {entity.aliases.map((alias) => (
             <Badge key={alias}>{alias}</Badge>
+          ))}
+        </div>
+      )}
+      {!!entity.evidence?.length && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {entity.evidence.map((evidence, index) => (
+            <Button
+              key={evidence.id}
+              variant="ghost"
+              onClick={() => onEvidence(evidence)}
+            >
+              Source evidence {index + 1}
+            </Button>
           ))}
         </div>
       )}
@@ -970,7 +1015,7 @@ export function IssuesScreen({ projectId }: { projectId: string }) {
               "Character attribute",
               "Timeline",
               "Relationship",
-              "Object state",
+              "Entity state",
               "Location",
               "World rule",
               "Other",

@@ -2,6 +2,35 @@
 
 This is the course/control layer for an existing StoryGuard repository.
 
+## Project scope
+
+StoryGuard is a personal, non-commercial AI Engineering portfolio and learning
+project, with no production deployment or planned sale. Non-commercial models
+and datasets are acceptable; retain attribution, provenance, and license terms.
+Revisit licensing suitability only if this intended use changes.
+
+Supported story entities: characters/people, facilities/buildings, countries
+and settlements, natural/geographical locations, organizations, and vehicles.
+General items/artifacts and a catch-all category are outside current scope.
+These are product categories, independent of the selected model or dataset.
+Entity resolution defaults to xCoRe + Gemma: supported exact-span coreference
+links skip Gemma; remaining candidate pairs use Gemma. Automatic merging stays
+on. Qwen comparison is deferred. This is a developer-approved speed-oriented
+promotion with known wrong-merge risk, not demonstrated full-book accuracy.
+
+The worker image includes an isolated coreference runtime. Rebuild with
+`docker compose up -d --build backend worker frontend`, then use **Resolve
+entities** or **Resume resolution** in Story Bible. Completed coreference output
+is cached per manuscript version; Stop kills an unfinished scan. The UI shows
+the combined pipeline, merges applied without Gemma, and pairs sent to Gemma.
+Coreference failures visibly fall back to Gemma. Set
+`models.llms.entity_resolution.pipeline: gemma` in `config/models.yaml` and
+restart backend/worker to roll back routing; existing decisions are not undone.
+
+The Docker application database contains disposable test data and may be
+explicitly reset for this iteration. Do not infer permission to wipe unrelated
+databases, Docker volumes, original source files, or model caches.
+
 ## Frontend
 
 StoryGuard now includes the complete evidence-first frontend shell described in

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.db.base import Base
 from app.db.models.entity_mention import EntityMention  # noqa: F401
+from app.db.models.entity_resolution import Entity, EntityAlias, ResolutionCandidate, ResolutionDecision  # noqa: F401
 from app.db.models.experiment_run import ExperimentRun  # noqa: F401
 from app.db.models.job_run import JobRun  # noqa: F401
 from app.db.models.manuscript_version import ManuscriptVersion  # noqa: F401

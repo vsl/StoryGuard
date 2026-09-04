@@ -1,4 +1,10 @@
 model_list:
+  - model_name: storyguard-entity-resolution
+    litellm_params:
+      model: ollama_chat/gemma4:e4b
+      api_base: http://host.docker.internal:11434
+      timeout: 180
+      num_retries: 0
   - model_name: storyguard-fast
     litellm_params:
       model: ollama_chat/gemma4:e4b

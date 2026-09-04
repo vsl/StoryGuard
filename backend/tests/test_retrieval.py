@@ -1,6 +1,7 @@
 import os
 import unittest
 import uuid
+from copy import deepcopy
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -104,15 +105,17 @@ class FakeTraceClient:
     def __init__(self, fail: bool = False) -> None:
         self.fail = fail
         self.created: list[dict] = []
+        self.updated: list[dict] = []
 
     def create_run(self, **kwargs) -> None:
         if self.fail:
             raise ConnectionError("LangSmith unavailable")
-        self.created.append(kwargs)
+        self.created.append(deepcopy(kwargs))
 
-    def update_run(self, **_kwargs) -> None:
+    def update_run(self, **kwargs) -> None:
         if self.fail:
             raise ConnectionError("LangSmith unavailable")
+        self.updated.append(deepcopy(kwargs))
 
 
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):

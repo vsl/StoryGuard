@@ -33,6 +33,18 @@ def completion(mentions: list[dict]) -> dict:
 
 
 class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
+    def test_six_category_scope_is_shared_and_excludes_unsupported_items(self):
+        from pydantic import ValidationError
+        from app.ai.gliner_extraction import LABELS
+        supported = {"character", "facility", "gpe", "location", "organization", "vehicle"}
+        self.assertEqual(set(EntityType), supported)
+        self.assertEqual(set(LABELS), supported)
+        for category in supported:
+            self.assertEqual(ExtractedMention(surface_text="Example", entity_type=category).entity_type, category)
+        for category in ("object", "other"):
+            with self.assertRaises(ValidationError):
+                ExtractedMention(surface_text="Excluded", entity_type=category)
+
     async def test_schema_repair_is_bounded_to_one_retry(self) -> None:
         valid = {
             "surface_text": "Alice",
@@ -40,7 +52,7 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
         }
         call = AsyncMock(side_effect=[completion([{"wrong": True}]), completion([valid])])
         with patch("app.ai.entity_extraction._completion", call):
-            result = await extract_entities("Alice waited.", "entity_extractor:v1")
+            result = await extract_entities("Alice waited.", "entity_extractor:v3")
 
         self.assertEqual(result.mentions[0].surface_text, "Alice")
         self.assertEqual(result.repair_count, 1)
@@ -60,7 +72,7 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
             ]
         )
         with patch("app.ai.entity_extraction._completion", new=AsyncMock(return_value=payload)):
-            result = await extract_entities("Alice waited.", "entity_extractor:v1")
+            result = await extract_entities("Alice waited.", "entity_extractor:v3")
 
         self.assertEqual([item.surface_text for item in result.mentions], ["Alice"])
         self.assertEqual([item.surface_text for item in result.invalid_mentions], ["Mallory"])
@@ -74,11 +86,11 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
         with patch("app.ai.entity_extraction._completion", call):
             result = await extract_entities(
                 "Alice waited.",
-                "entity_extractor:v2",
+                "entity_extractor:v3",
                 model_alias="storyguard-entity-qwen35-9b",
             )
 
-        self.assertEqual(result.prompt_version, "entity_extractor:v2")
+        self.assertEqual(result.prompt_version, "entity_extractor:v3")
         self.assertEqual(call.await_args.args[2], "storyguard-entity-qwen35-9b")
 
     async def test_two_invalid_outputs_fail_safely(self) -> None:
@@ -87,7 +99,7 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
             patch("app.ai.entity_extraction._completion", call),
             self.assertRaises(EntityExtractionError),
         ):
-            await extract_entities("Alice waited.", "entity_extractor:v1")
+            await extract_entities("Alice waited.", "entity_extractor:v3")
         self.assertEqual(call.await_count, 2)
 
     async def test_experiment_records_bounded_model_failure(self) -> None:
@@ -113,7 +125,7 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
                 new=AsyncMock(side_effect=EntityExtractionError("invalid output")),
             ),
         ):
-            result = await evaluate("entity_extractor:v1", [case])
+            result = await evaluate("entity_extractor:v3", [case])
 
         self.assertEqual((result["recall"], result["failure_rate"]), (0.0, 1.0))
         self.assertEqual(result["failures"][0]["error"], "EntityExtractionError")
@@ -154,7 +166,7 @@ class EntityExtractionTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(load_cases("test", MODEL_FIXTURE)), 24)
 
     def test_model_eval_labels_do_not_leak_into_v2_prompt(self) -> None:
-        prompt = PROMPTS["entity_extractor:v2"].casefold()
+        prompt = PROMPTS["entity_extractor:v3"].casefold()
         for case in load_cases("test", MODEL_FIXTURE):
             for mention in case["mentions"]:
                 surface = re.escape(mention["surface_text"].casefold())

@@ -2,6 +2,7 @@ import asyncio
 import os
 import unittest
 import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 
@@ -22,6 +23,8 @@ if RUN_DATABASE_TESTS:
 
     from app.ai.retrieval import replace_version_chunks
     from app.db.models.manuscript_version import ManuscriptVersion
+    from app.db.models.job_run import JobRun
+    from app.db.models.entity_mention import EntityMention
     from app.db.models.project import Project
     from app.db.session import SessionLocal, engine
     from app.main import app
@@ -64,13 +67,16 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
         await self.client.aclose()
         await engine.dispose()
 
-    async def _upload(self, name: str = "story.txt", extraction_model: str | None = None) -> dict:
+    async def _upload(
+        self, name: str = "story.txt", extraction_model: str | None = None,
+        text: bytes = b"Chapter 1\nAlice waited.",
+    ) -> dict:
         with patch(
             "app.api.ingestion.parse_and_ingest_manuscript.kiq", new=AsyncMock()
         ):
             response = await self.client.post(
                 f"/api/projects/{self.project_id}/manuscripts",
-                files={"file": (name, b"Chapter 1\nAlice waited.", "text/plain")},
+                files={"file": (name, text, "text/plain")},
                 data={"extraction_model": extraction_model} if extraction_model else {},
             )
         self.assertEqual(response.status_code, 201)
@@ -207,6 +213,7 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
             create.assert_not_awaited()
 
     async def test_queue_failure_is_safe_and_does_not_replace_current(self) -> None:
+        older = await self._upload()
         with patch(
             "app.api.ingestion.parse_and_ingest_manuscript.kiq",
             new=AsyncMock(side_effect=RuntimeError("amqp://secret")),
@@ -230,6 +237,151 @@ class ApplicationApiIntegrationTest(unittest.IsolatedAsyncioTestCase):
             project = await session.get(Project, self.project_id)
         self.assertEqual(version.status, "failed")
         self.assertIsNone(project.current_manuscript_version_id)
+        old_job = (await self.client.get(f"/api/jobs/{older['job_id']}")).json()
+        self.assertEqual(old_job["status"], "queued")
+
+    async def test_cancel_is_scoped_idempotent_and_redelivery_does_no_work(self) -> None:
+        upload = await self._upload()
+        version_id = upload["manuscript_version_id"]
+        other = await self.client.post(
+            f"/api/projects/{self.other_project_id}/manuscripts/{version_id}/cancel"
+        )
+        self.assertEqual(other.status_code, 404)
+        for _ in range(2):
+            response = await self.client.post(
+                f"/api/projects/{self.project_id}/manuscripts/{version_id}/cancel"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["status"], "cancelled")
+        with patch("app.queue.tasks.ingestion._download") as download:
+            await run_parse_and_ingest(uuid.UUID(upload["job_id"]))
+            download.assert_not_called()
+        async with SessionLocal() as session:
+            job = await session.get(JobRun, uuid.UUID(upload["job_id"]))
+            self.assertEqual((job.status, job.attempts), ("cancelled", 0))
+            self.assertIsNotNone(job.completed_at)
+            self.assertEqual(job.error_code, "USER_CANCELLED")
+
+    async def test_cancel_during_extraction_stops_next_chunk_and_preserves_current(self) -> None:
+        ready = await self._upload()
+        with (
+            patch("app.queue.tasks.ingestion.embed_documents", side_effect=fake_embeddings),
+            patch("app.queue.tasks.ingestion.extract_version_entities", new=AsyncMock(return_value=1)),
+        ):
+            await run_parse_and_ingest(uuid.UUID(ready["job_id"]))
+        completed_cancel = await self.client.post(
+            f"/api/projects/{self.project_id}/manuscripts/{ready['manuscript_version_id']}/cancel"
+        )
+        self.assertEqual(completed_cancel.status_code, 409)
+        upload = await self._upload(text=b"Chapter 1\nAlice waited.\n\n***\n\nBob arrived.")
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def extract(*args, **kwargs):
+            started.set()
+            await release.wait()
+            return SimpleNamespace(mentions=[])
+
+        with (
+            patch("app.queue.tasks.ingestion.embed_documents", side_effect=fake_embeddings),
+            patch("app.entity_mentions.extract_entities", side_effect=extract) as model,
+        ):
+            task = asyncio.create_task(run_parse_and_ingest(uuid.UUID(upload["job_id"])))
+            try:
+                await asyncio.wait_for(started.wait(), 15)
+                response = await self.client.post(
+                    f"/api/projects/{self.project_id}/manuscripts/{upload['manuscript_version_id']}/cancel"
+                )
+                self.assertEqual(response.json()["status"], "cancelled")
+            finally:
+                release.set()
+                await asyncio.wait_for(task, 15)
+            self.assertEqual(model.call_count, 1)
+        async with SessionLocal() as session:
+            job = await session.get(JobRun, uuid.UUID(upload["job_id"]))
+            project = await session.get(Project, self.project_id)
+            mentions = list(await session.scalars(select(EntityMention).where(
+                EntityMention.manuscript_version_id == uuid.UUID(upload["manuscript_version_id"])
+            )))
+        self.assertEqual(job.status, "cancelled")
+        self.assertIn("entity_extraction", job.stage_durations_ms)
+        self.assertEqual(mentions, [])
+        self.assertEqual(str(project.current_manuscript_version_id), ready["manuscript_version_id"])
+
+    async def test_new_upload_cancels_running_job_even_if_its_model_call_fails(self) -> None:
+        older = await self._upload()
+        async with SessionLocal() as session:
+            other_job = JobRun(
+                job_type="parse_and_ingest_manuscript", project_id=self.other_project_id,
+                idempotency_key=f"other:{uuid.uuid4()}", status="running",
+            )
+            session.add(other_job)
+            await session.commit()
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def extract(*args, **kwargs):
+            started.set()
+            await release.wait()
+            raise TimeoutError("private provider error")
+
+        with (
+            patch("app.queue.tasks.ingestion.embed_documents", side_effect=fake_embeddings),
+            patch("app.queue.tasks.ingestion.extract_version_entities", side_effect=extract),
+        ):
+            task = asyncio.create_task(run_parse_and_ingest(uuid.UUID(older["job_id"])))
+            try:
+                await asyncio.wait_for(started.wait(), 15)
+                newer = await self._upload()
+            finally:
+                release.set()
+                await asyncio.wait_for(task, 15)
+        async with SessionLocal() as session:
+            old = await session.get(JobRun, uuid.UUID(older["job_id"]))
+            new = await session.get(JobRun, uuid.UUID(newer["job_id"]))
+            other = await session.get(JobRun, other_job.id)
+            self.assertEqual((old.status, old.error_code), ("cancelled", "SUPERSEDED"))
+            self.assertEqual((new.status, other.status), ("queued", "running"))
+        with patch("app.queue.tasks.ingestion._download") as download:
+            await run_parse_and_ingest(uuid.UUID(older["job_id"]))
+            download.assert_not_called()
+
+    async def test_late_completion_and_old_worker_redelivery_cannot_replace_newer(self) -> None:
+        older = await self._upload()
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def extract(*args, **kwargs):
+            started.set()
+            await release.wait()
+            return 0
+
+        with (
+            patch("app.queue.tasks.ingestion.embed_documents", side_effect=fake_embeddings),
+            patch("app.queue.tasks.ingestion.extract_version_entities", side_effect=extract),
+        ):
+            task = asyncio.create_task(run_parse_and_ingest(uuid.UUID(older["job_id"])))
+            try:
+                await asyncio.wait_for(started.wait(), 15)
+                newer = await self._upload()
+                with patch("app.queue.tasks.ingestion.extract_version_entities", new=AsyncMock(return_value=0)):
+                    await run_parse_and_ingest(uuid.UUID(newer["job_id"]))
+                # Simulate a pre-upgrade worker/failed retry whose old status was never cancelled.
+                async with SessionLocal() as session:
+                    job = await session.get(JobRun, uuid.UUID(older["job_id"]))
+                    version = await session.get(ManuscriptVersion, uuid.UUID(older["manuscript_version_id"]))
+                    job.status, version.status = "running", "processing"
+                    await session.commit()
+            finally:
+                release.set()
+                await asyncio.wait_for(task, 15)
+        async with SessionLocal() as session:
+            project = await session.get(Project, self.project_id)
+            old = await session.get(JobRun, uuid.UUID(older["job_id"]))
+            self.assertEqual(str(project.current_manuscript_version_id), newer["manuscript_version_id"])
+            self.assertEqual(old.status, "cancelled")
+            old.status = "failed"
+            await session.commit()
+        with patch("app.queue.tasks.ingestion._download") as download:
+            await run_parse_and_ingest(uuid.UUID(older["job_id"]))
+            download.assert_not_called()
 
 
 if __name__ == "__main__":

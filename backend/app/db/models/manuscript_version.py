@@ -25,7 +25,7 @@ class ManuscriptVersion(Base):
         CheckConstraint("version_number > 0", name="ck_manuscript_version_number"),
         CheckConstraint("file_size > 0", name="ck_manuscript_file_size"),
         CheckConstraint(
-            "status IN ('uploaded', 'processing', 'ready', 'failed', 'archived')",
+            "status IN ('uploaded', 'processing', 'ready', 'failed', 'archived', 'cancelled')",
             name="ck_manuscript_status",
         ),
         UniqueConstraint("project_id", "version_number"),

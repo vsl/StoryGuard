@@ -15,9 +15,9 @@ from scripts.entity_extraction_experiment import load_cases, summarize_rows
 
 
 ROOT = Path(__file__).parents[2]
-FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction_model_eval.jsonl"
+FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction_model_eval_v3.jsonl"
 DEFAULT_MODELS_CONFIG = ROOT / "config" / "models.yaml"
-EXPERIMENT_ID = "entity-extraction-gliner25-base-v1-20260830"
+EXPERIMENT_ID = "entity-extraction-gliner25-labels-v2-20260831"
 WARMUP_TEXT = "Ari entered Stonehaven."
 
 

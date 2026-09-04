@@ -12,6 +12,7 @@ import httpx
 from app.ai.entity_extraction import (
     MODEL_ALIAS,
     PROMPTS,
+    PROMPT_VERSION,
     EntityExtractionError,
     EntityType,
     extract_entities,
@@ -19,7 +20,7 @@ from app.ai.entity_extraction import (
 
 
 ROOT = Path(__file__).parents[2]
-FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction.jsonl"
+FIXTURE = ROOT / "data" / "datasets" / "fixtures" / "entity_extraction_v3.jsonl"
 
 
 def load_cases(split: str, fixture: Path = FIXTURE) -> list[dict]:
@@ -201,8 +202,7 @@ async def evaluate(
 
 async def run(split: str) -> dict:
     cases = load_cases(split)
-    baseline = await evaluate("entity_extractor:v1", cases)
-    candidate = await evaluate("entity_extractor:v2", cases)
+    result = await evaluate(PROMPT_VERSION, cases)
     return {
         "dataset": {
             "split": split,
@@ -210,8 +210,7 @@ async def run(split: str) -> dict:
             "sha256": hashlib.sha256(FIXTURE.read_bytes()).hexdigest(),
             "example_ids": [case["id"] for case in cases],
         },
-        "baseline": baseline,
-        "candidate": candidate,
+        "result": result,
     }
 
 

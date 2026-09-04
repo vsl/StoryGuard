@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   ArrowRight,
@@ -119,10 +119,33 @@ function formatDuration(milliseconds: number) {
 
 export function VersionsScreen({ projectId }: { projectId: string }) {
   const welcome = useSearchParams().get("welcome") === "1";
+  const queryClient = useQueryClient();
   const project = useProject(projectId);
-  const versions = useEndpoint<
+  const versions = useQuery<
     ManuscriptVersion[] | { items?: ManuscriptVersion[] }
-  >(["versions", projectId], `/projects/${projectId}/manuscripts`);
+  >({
+    queryKey: ["versions", projectId],
+    queryFn: () => api(`/projects/${projectId}/manuscripts`),
+    refetchInterval: (query) =>
+      listOf(query.state.data).some((version) =>
+        ["uploaded", "processing"].includes(version.status ?? ""),
+      )
+        ? 2000
+        : false,
+  });
+  const cancel = useMutation({
+    mutationFn: (versionId: string) =>
+      api<ManuscriptVersion>(
+        `/projects/${projectId}/manuscripts/${versionId}/cancel`,
+        { method: "POST" },
+      ),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["versions", projectId] }),
+        queryClient.invalidateQueries({ queryKey: ["projects", projectId] }),
+        queryClient.invalidateQueries({ queryKey: ["job"] }),
+      ]),
+  });
   const [file, setFile] = useState<File | null>(null);
   const models = useEndpoint<ExtractionModelCatalog>(
     ["extraction-models"],
@@ -146,10 +169,27 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
   const refetchProject = project.refetch;
 
   useEffect(() => {
-    if (["completed", "failed"].includes(job.data?.status ?? "")) {
+    if (["completed", "failed", "cancelled"].includes(job.data?.status ?? "")) {
       void Promise.all([refetchVersions(), refetchProject()]);
     }
   }, [job.data?.status, refetchProject, refetchVersions]);
+
+  // Version polling survives reloads and also notices completion in another tab.
+  useEffect(() => {
+    const latestReady = listOf(versions.data).find(
+      (version) => version.status === "ready",
+    );
+    if (
+      latestReady &&
+      latestReady.id !== project.data?.current_manuscript_version_id
+    ) {
+      void refetchProject();
+    }
+  }, [
+    versions.data,
+    project.data?.current_manuscript_version_id,
+    refetchProject,
+  ]);
 
   function upload(event: FormEvent) {
     event.preventDefault();
@@ -208,11 +248,16 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
             ? "Your story is ready for a manuscript"
             : "Manuscript Versions"
         }
-        description="Uploading parses chapters, rebuilds the search index, and extracts entity mentions with your chosen model. The previous ready version stays current until processing succeeds."
+        description="Uploading parses chapters, rebuilds the search index, and extracts entity mentions with your chosen model. A new accepted upload cancels older unfinished processing. The previous ready version stays current until processing succeeds."
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Card className="p-6">
           <h2 className="page-title text-xl font-semibold">Version history</h2>
+          {cancel.error && (
+            <p className="mt-3 text-sm text-[var(--danger)]" role="alert">
+              {errorMessage(cancel.error)}
+            </p>
+          )}
           {versions.isLoading && <LoadingState />}
           {versions.error && (
             <ErrorState
@@ -262,6 +307,18 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
                 )}
               </div>
               <Badge>{version.status ?? "unknown"}</Badge>
+              {["uploaded", "processing"].includes(version.status ?? "") && (
+                <Button
+                  variant="secondary"
+                  disabled={cancel.isPending}
+                  aria-label={`Cancel processing version ${version.version_number ?? items.length - index}`}
+                  onClick={() => cancel.mutate(version.id)}
+                >
+                  {cancel.isPending && cancel.variables === version.id
+                    ? "Cancelling…"
+                    : "Cancel processing"}
+                </Button>
+              )}
               <Button variant="ghost" disabled aria-label="Delete old version">
                 <Trash2 className="size-4" />
               </Button>
@@ -416,6 +473,13 @@ export function VersionsScreen({ projectId }: { projectId: string }) {
                   {job.data.error_message_safe ??
                     job.data.error ??
                     "Processing failed."}
+                </p>
+              )}
+              {job.data.status === "cancelled" && (
+                <p className="mt-2 text-sm text-muted">
+                  {job.data.error_message_safe ?? "Processing was cancelled."}{" "}
+                  An in-flight operation may finish; this version will not
+                  become current.
                 </p>
               )}
             </div>

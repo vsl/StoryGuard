@@ -4,6 +4,12 @@
 
 **Status:** architecture and initial tuning defaults are locked. Values explicitly marked as experimental may be changed only through measured experiments, with the baseline preserved for comparison.
 
+**Project scope:** personal, non-commercial portfolio/learning project; no
+production deployment or planned sale. Non-commercial model/dataset licenses
+are acceptable; preserve attribution and provenance. The local application DB
+contains disposable test data and may be explicitly reset in this iteration.
+Migrations must not silently delete data; unrelated stores remain out of scope.
+
 StoryGuard is intended to be a serious AI Engineering portfolio project. The implementation must prioritize understanding and demonstrating:
 
 - production-style AI workflows;
@@ -948,7 +954,7 @@ manuscript_versions
 - id
 - project_id
 - version_number
-- status: uploaded|processing|ready|failed|archived
+- status: uploaded|processing|ready|failed|archived|cancelled
 - object_key
 - original_filename
 - mime_type
@@ -964,6 +970,11 @@ Important invariant:
 > A newly uploaded version does NOT become current until processing succeeds.
 
 If v4 fails processing, v3 remains current.
+
+An accepted new upload cancels older unfinished ingestion in the same project.
+Users can also cancel an uploaded/processing version. Cancellation preserves
+the uploaded file and version history, prevents retries/promotion, and is checked
+between worker stages and extraction chunks. An in-flight operation may finish.
 
 ## Chapters
 
@@ -1022,13 +1033,21 @@ Generic entity table:
 entities
 - id
 - manuscript_version_id
-- type: character|location|object|organization|other
+- type: character|facility|gpe|location|organization|vehicle
 - canonical_name
 - confidence nullable
 - status: active|merged|needs_review
 ```
 
 ## Entity Aliases
+
+The entity categories are model-independent: characters/people (including
+person-like narrative characters), facilities/buildings/rooms/constructed sites,
+countries/cities/settlements (`gpe`), natural/geographical locations,
+organizations, and vehicles. General items, artifacts, festivals and catch-all
+entities are out of scope. Never relabel excluded items as locations to retain
+them. A fact's grammatical `object_entity_id` and MinIO object storage are not
+story-entity categories and remain unchanged.
 
 ```text
 entity_aliases
@@ -1259,7 +1278,7 @@ job_runs
 - job_type
 - project_id
 - manuscript_version_id nullable
-- status: queued|running|completed|failed
+- status: queued|running|completed|failed|cancelled
 - stage nullable
 - completed_units nullable
 - total_units nullable
@@ -1552,6 +1571,43 @@ human-review rate
 ```
 
 At minimum, maintain a curated eval set of ambiguous names.
+
+One start request processes the current candidate list across automatic worker
+batches. Each batch starts at most 20 Gemma comparisons or 300 seconds of new
+work, then requeues the same job if eligible comparisons remain. The job stays
+queued/running across batch boundaries; no further user click or open browser is
+required. Stop remains available during inference and between batches. Saved
+per-candidate attempt counts limit temporary failures to one retry across all
+batches and Stop/Resume, preventing an endless retry loop. Exhausted failures
+remain visible errors and do not count as remaining automatic work. Queue
+publication failures preserve decisions and expose a resumable job error; late
+enqueue failures must not overwrite a newer Stop/Resume. This does not expand
+the separate 2,000-candidate generation ceiling or change model decisions.
+
+The developer-promoted default is `coreference_gemma`; `gemma` remains a routing
+rollback option. Gemma remains the fallback LLM; Qwen comparison is deferred.
+The worker runs cached coreference over bounded original-text windows,
+followed by Gemma for unresolved candidate pairs. Validate original spans and separation
+constraints before automatic application. Missing links never prove separation;
+coreference scores are not calibrated merge probabilities. Compare both arms
+on the same versioned examples and record wall time, LLM calls, wrong/missed
+merges, review/error rate and trace IDs before candidate promotion.
+
+The accepted shortcut is exact membership in one predicted group, not calibrated
+certainty. The five-case diagnostic found an additional incorrect merge; the
+developer explicitly accepted promotion with that risk. Full-book speed/quality
+is unmeasured. Preserve the baseline and original diagnostic results.
+
+Implementation: isolated Python runtime inside the existing worker container;
+no new model HTTP service. One heavy coreference subprocess at a time per local
+cache, with a 30-minute wait/scan deadline and Stop polling. Complete output is
+atomically cached by manuscript version, original chapter content, runner and
+dependency fingerprint. Stop kills the child and discards unfinished output;
+completed cache and saved decisions survive Resume. Cache/model/span validation
+failures fall back to Gemma with a visible warning. Existing project/version,
+evidence, keep-separate and late-result fences still govern every applied merge.
+Coreference decisions have distinct model/revision/trace provenance, never a
+fabricated Gemma prompt or token count. No new database schema is needed.
 
 ---
 
@@ -2640,7 +2696,7 @@ CHARACTER_ATTRIBUTE
 TIMELINE
 RELATIONSHIP
 CHARACTER_KNOWLEDGE
-OBJECT_STATE
+ENTITY_STATE
 LOCATION
 WORLD_RULE
 OTHER
@@ -2682,11 +2738,11 @@ timeline
 character knowledge
 -> character_knowledge + event chronology + manuscript
 
-object state
--> state transitions + manuscript
-
 relationship
 -> relationships + events + manuscript
+
+supported entity state (for example a vehicle or facility)
+-> state transitions + manuscript
 ```
 
 This routing must be traceable and testable.
@@ -3148,6 +3204,28 @@ Do not describe it as internet-production-ready without authentication.
 
 LangSmith is mandatory for the learning goals, but tracing failure must not break application functionality.
 
+Entity resolution emits an `entity_resolution_batch` chain for each worker
+invocation. Searchable metadata links separate batches with the same `job_id`
+and records `batch_number`, project/version, pipeline and automatic-apply mode.
+Its children are Gemma `entity_resolution` comparisons and a
+`resolution_coreference` cache/load stage. That stage references the original
+subprocess scan via `source_scan_trace_id`; cached scans are not repeated or
+represented as new inference. Batch outputs include duration, Gemma attempts,
+coreference shortcuts, retry/failed attempts, queue publication and an explicit
+end reason (call/time budget, completion, Stop, supersession or safe error code).
+`version_totals` is the latest committed manuscript-wide snapshot, including
+applied merge/separation decisions, errors, review and remaining work; it is not
+a per-batch delta and must not be summed across traces. Attempts may include
+results discarded after Stop; they are not evidence of an applied merge.
+
+Each comparison's audit metadata retains its `batch_trace_id` alongside the
+existing model/scan run ID. New batch/cache spans contain only IDs, counts and
+allowlisted diagnostics in every content mode. Existing Gemma pair content
+continues to honor full/minimal/redacted mode. Raw DB, queue and cache exceptions
+must not be sent through batch/cache traces. Annotation/export failures must
+not alter processing, application or cancellation. Traces do not replace the
+database audit, and historical untraced batches cannot be reconstructed.
+
 Trace:
 
 ```text
@@ -3364,6 +3442,8 @@ GET /api/projects/{project_id}/chapters/{chapter_id}
 GET /api/projects/{project_id}/characters
 GET /api/projects/{project_id}/characters/{entity_id}
 GET /api/projects/{project_id}/locations
+GET /api/projects/{project_id}/entities?type=character|facility|gpe|location|organization|vehicle
+GET /api/projects/{project_id}/entities/{entity_id}
 GET /api/projects/{project_id}/facts
 GET /api/projects/{project_id}/events
 GET /api/projects/{project_id}/relationships
@@ -3546,7 +3626,7 @@ Build a controlled mutation layer over selected public-domain narratives instead
 character_attribute
 timeline
 character_knowledge
-object_state
+entity_state
 location
 relationship
 world_rule
@@ -3629,7 +3709,7 @@ Start from consistent text and programmatically/manually mutate:
 ```text
 green eyes -> blue eyes
 Paris visit exists -> "first visit to France"
-object destroyed -> used later
+vehicle destroyed -> used later
 knowledge learned later -> referenced earlier
 ```
 

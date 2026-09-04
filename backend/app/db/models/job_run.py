@@ -22,7 +22,7 @@ class JobRun(Base):
     __tablename__ = "job_runs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'running', 'completed', 'failed')",
+            "status IN ('queued', 'running', 'completed', 'failed', 'cancelled')",
             name="ck_job_run_status",
         ),
         CheckConstraint("attempts >= 0", name="ck_job_run_attempts"),

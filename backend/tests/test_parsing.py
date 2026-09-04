@@ -371,7 +371,7 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
                 (mention.prompt_version, mention.model_alias)
                 for mention in entity_mentions
             },
-            {("entity_extractor:v2", "storyguard-entity-gemma4-e4b")},
+            {("entity_extractor:v3", "storyguard-entity-gemma4-e4b")},
         )
 
         bad_version, bad_job = await self._version_and_job("bad.txt", b"\xff")
@@ -462,8 +462,8 @@ class ParsingIntegrationTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_selected_extractor_and_retry_do_not_fall_back(self) -> None:
         for selected, expected_alias, expected_prompt in (
-            ("qwen3.5-9b", "storyguard-entity-qwen35-9b", "entity_extractor:v2"),
-            ("gliner2.5-base-v1", "gliner2.5-base-v1", "gliner2.5-base-v1:labels-v1"),
+            ("qwen3.5-9b", "storyguard-entity-qwen35-9b", "entity_extractor:v3"),
+            ("gliner2.5-base-v1", "gliner2.5-base-v1", "gliner2.5-base-v1:labels-v2"),
         ):
             version, job = await self._version_and_job(
                 "story.txt", b"Chapter 1\nAlice waited.", selected

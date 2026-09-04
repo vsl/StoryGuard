@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.db.models import (  # noqa: F401
     entity_mention,
+    entity_resolution,
     experiment_run,
     job_run,
     manuscript_version,

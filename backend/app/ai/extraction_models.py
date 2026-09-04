@@ -23,6 +23,15 @@ def default_extraction_model() -> ExtractionModel:
     return ExtractionModel(_registry()["llms"]["entity_extraction"]["default"])
 
 
+def resolution_model_config() -> dict:
+    config = _registry()["llms"]["entity_resolution"]
+    selected = config["default"]
+    available = config.get("available", {})
+    if selected not in available:
+        raise ValueError("Unknown entity-resolution model")
+    return {**config, **available[selected]}
+
+
 def extraction_model_config(model: str) -> dict:
     selected = ExtractionModel(model)  # Reject arbitrary model IDs and URLs.
     section = "extractors" if selected == ExtractionModel.GLINER else "llms"

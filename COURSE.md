@@ -73,8 +73,17 @@ Never skip the discussion/approval steps.
 
 ## Phase 5 — Structured Story Memory
 
+Supported entities: characters/people, facilities/buildings, countries and
+settlements, natural/geographical locations, organizations, and vehicles.
+General artifacts and catch-all entities are out of scope for extraction,
+resolution, Story Bible, and future continuity work. Scope is model-independent.
+
 - 5.1 Entity extraction
 - 5.2 Entity resolution
+  - evaluate cached coreference groups with Gemma for unresolved candidates;
+  - measure wall time, LLM calls, wrong/missed merges, review rate, and evidence;
+  - preserve Stop/Resume and automatic application of accepted decisions;
+  - defer Qwen comparison; code passing alone does not complete the lesson.
 - 5.3 Facts / events / relationships
 
 ## Phase 6 — Model Routing

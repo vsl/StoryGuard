@@ -17,7 +17,9 @@ services:
         condition: service_healthy
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      target: app
     environment:
       DATABASE_URL: postgresql+asyncpg://storyguard:${POSTGRES_PASSWORD:-storyguard}@postgres:5432/storyguard
       ELASTICSEARCH_URL: http://elasticsearch:9200
@@ -62,7 +64,9 @@ services:
       retries: 5
 
   worker:
-    build: ./backend
+    build:
+      context: ./backend
+      target: coreference-worker
     command:
       - taskiq
       - worker
@@ -72,6 +76,7 @@ services:
       - app.queue.tasks.smoke
       - app.queue.tasks.ingestion
       - app.queue.tasks.experiments
+      - app.queue.tasks.entity_resolution
     environment:
       DATABASE_URL: postgresql+asyncpg://storyguard:${POSTGRES_PASSWORD:-storyguard}@postgres:5432/storyguard
       ELASTICSEARCH_URL: http://elasticsearch:9200
@@ -94,7 +99,10 @@ services:
       STORYGUARD_DATASETS_CONFIG: /config/datasets.yaml
       STORYGUARD_DATA_DIR: /data
       STORYGUARD_LOCAL_DIR: /local
+      STORYGUARD_COREFERENCE_PYTHON: /opt/coreference/bin/python
+      STORYGUARD_COREFERENCE_MODELS: /coreference-models
     volumes:
+      - ./.local/xcore-models:/coreference-models
       - ./.local/hf-cache:/models
       - ./.local:/local
       - ./data:/data:ro

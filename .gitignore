@@ -7,7 +7,12 @@ __pycache__/
 .pytest_cache/
 frontend/.next/
 frontend/node_modules/
-data/datasets/fixtures/
+data/datasets/fixtures/*
+!data/datasets/fixtures/entity_resolution_v1.jsonl
+!data/datasets/fixtures/entity_resolution_v2.jsonl
+!data/datasets/fixtures/entity_extraction_v3.jsonl
+!data/datasets/fixtures/entity_extraction_model_eval_v3.jsonl
+frontend/tsconfig.tsbuildinfo
 frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/

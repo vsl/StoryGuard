@@ -5,6 +5,7 @@ from sqlalchemy import delete, select
 
 from app.ai.entity_extraction import (
     ChapterMention,
+    PROMPT_VERSION,
     SourceChunk,
     deduplicate_mentions,
     extract_entities,
@@ -18,9 +19,6 @@ from app.db.models.narrative import Chapter, Chunk
 from app.db.session import SessionLocal
 
 
-PROMPT_VERSION = "entity_extractor:v2"
-
-
 async def extract_version_entities(
     project_id: uuid.UUID, manuscript_version_id: uuid.UUID
 ) -> int:
@@ -28,6 +26,8 @@ async def extract_version_entities(
         version = await session.get(ManuscriptVersion, manuscript_version_id)
         if version is None or version.project_id != project_id:
             raise LookupError("Manuscript version not found in project")
+        if version.status == "cancelled":
+            return 0
         selected_model = ExtractionModel(version.extraction_model)
         config = extraction_model_config(selected_model)
         chunks = list(
@@ -54,6 +54,14 @@ async def extract_version_entities(
     model_alias = selected_model.value if is_gliner else config["litellm_alias"]
     extracted: list[ChapterMention] = []
     for chunk in chunks:
+        # An in-flight inference may finish; do not start another chunk after cancellation.
+        async with SessionLocal() as session:
+            status = await session.scalar(select(ManuscriptVersion.status).where(
+                ManuscriptVersion.id == manuscript_version_id,
+                ManuscriptVersion.project_id == project_id,
+            ))
+            if status is None or status == "cancelled":
+                return 0
         if is_gliner:
             chunk_mentions = await asyncio.to_thread(extract_gliner, chunk.text, config)
         else:
@@ -90,6 +98,8 @@ async def extract_version_entities(
         )
         if version is None or version.project_id != project_id:
             raise LookupError("Manuscript version scope changed during extraction")
+        if version.status == "cancelled":
+            return 0
         if version.extraction_model != selected_model:
             raise ValueError("Selected extractor changed during extraction")
         current_chunk_ids = set(

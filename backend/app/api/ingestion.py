@@ -12,9 +12,14 @@ from app.ai.extraction_models import ExtractionModel, extraction_model_catalog
 from app.db.models.job_run import JobRun
 from app.db.models.manuscript_version import ManuscriptVersion
 from app.db.models.narrative import Chapter
+from app.db.models.project import Project
 from app.db.session import get_session
 from app.manuscripts import create_manuscript_version
-from app.queue.tasks.ingestion import parse_and_ingest_manuscript
+from app.queue.tasks.ingestion import (
+    cancel_ingestion,
+    latest_accepted_version,
+    parse_and_ingest_manuscript,
+)
 from app.schemas.ingestion import (
     ChapterDetailRead,
     ChapterRead,
@@ -74,18 +79,25 @@ async def upload_manuscript(
         job_type="parse_and_ingest_manuscript",
         project_id=project_id,
         manuscript_version_id=version.id,
-        stage="file_uploaded",
+        stage="awaiting_dispatch",
         idempotency_key=f"parse:{version.id}",
     )
     session.add(job)
     await session.commit()
-    await session.refresh(job)
+    # Workers take this same project lock before starting or promoting a version.
+    await session.get(Project, project_id, with_for_update=True)
+    await session.refresh(job, with_for_update=True)
+    await session.refresh(version, with_for_update=True)
+    if version.status == "cancelled" and job.status != "cancelled":
+        cancel_ingestion(job, version, "USER_CANCELLED")
     try:
-        await parse_and_ingest_manuscript.kiq(str(job.id))
+        if job.status != "cancelled":
+            await parse_and_ingest_manuscript.kiq(str(job.id))
     except Exception:
         job.status = "failed"
         job.error_code = "QUEUE_UNAVAILABLE"
         job.error_message_safe = "The manuscript could not be queued for processing."
+        job.completed_at = datetime.now(timezone.utc)
         version.status = "failed"
         await session.commit()
         return JSONResponse(
@@ -97,6 +109,31 @@ async def upload_manuscript(
                 }
             },
         )
+    if job.status != "cancelled":
+        job.stage = "file_uploaded"
+        await session.flush()
+        newest = await latest_accepted_version(session, project_id)
+        older_jobs = list(await session.scalars(
+            select(JobRun).where(
+                JobRun.project_id == project_id,
+                JobRun.job_type == "parse_and_ingest_manuscript",
+                JobRun.status.in_(("queued", "running")),
+                JobRun.manuscript_version_id.in_(
+                    select(ManuscriptVersion.id).where(
+                        ManuscriptVersion.project_id == project_id,
+                        ManuscriptVersion.version_number < newest,
+                    )
+                ),
+            ).order_by(JobRun.id).with_for_update()
+            .execution_options(populate_existing=True)
+        ))
+        for older_job in older_jobs:
+            older_version = await session.get(
+                ManuscriptVersion, older_job.manuscript_version_id,
+                with_for_update=True, populate_existing=True,
+            )
+            cancel_ingestion(older_job, older_version, "SUPERSEDED")
+    await session.commit()
     return ManuscriptUploadRead(
         manuscript_version_id=version.id,
         version=f"v{version.version_number}",
@@ -104,6 +141,39 @@ async def upload_manuscript(
         status=job.status,
         extraction_model=version.extraction_model,
     )
+
+
+@router.post(
+    "/api/projects/{project_id}/manuscripts/{version_id}/cancel",
+    response_model=ManuscriptVersionRead,
+)
+async def cancel_manuscript(
+    project_id: uuid.UUID, version_id: uuid.UUID, session: Session
+) -> ManuscriptVersion:
+    project = await session.get(Project, project_id, with_for_update=True)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    job = await session.scalar(select(JobRun).where(
+        JobRun.project_id == project_id,
+        JobRun.manuscript_version_id == version_id,
+        JobRun.job_type == "parse_and_ingest_manuscript",
+    ).with_for_update())
+    version = await session.scalar(select(ManuscriptVersion).where(
+        ManuscriptVersion.id == version_id,
+        ManuscriptVersion.project_id == project_id,
+    ).with_for_update())
+    if version is None:
+        raise HTTPException(status_code=404, detail="Manuscript version not found")
+    if version.status == "cancelled":
+        return version
+    if version.status not in {"uploaded", "processing"}:
+        raise HTTPException(status_code=409, detail="This version is no longer processing")
+    if job is not None:
+        cancel_ingestion(job, version, "USER_CANCELLED")
+    else:
+        version.status = "cancelled"
+    await session.commit()
+    return version
 
 
 @router.get(
