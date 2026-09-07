@@ -22,7 +22,14 @@ from app.ai.structured_memory import (
     extract_structured_memory,
     validate_memory,
 )
-from scripts.structured_memory_experiment import FIXTURES, _semantic_sets, _sets, load_cases, summarize
+from scripts.structured_memory_experiment import (
+    FIXTURES,
+    _semantic_sets,
+    _sets,
+    evaluate,
+    load_cases,
+    summarize,
+)
 
 
 def completion(output: dict) -> dict:
@@ -450,6 +457,20 @@ class StructuredMemoryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             result.memory.rejection_reasons, ("event:insufficient_communication_participants",),
         )
+
+    async def test_experiment_does_not_count_transport_failure_as_repair(self) -> None:
+        with patch(
+            "scripts.structured_memory_experiment.extract_structured_memory",
+            AsyncMock(side_effect=ConnectionError("unavailable")),
+        ):
+            result = await evaluate(CANDIDATE_V7_PROMPT_VERSION, [{
+                "id": "transport_failure",
+                "inputs": self.inputs,
+                "expected_output": ExtractedMemory(),
+            }], AsyncMock())
+
+        self.assertEqual(result["metrics"]["repair_count"], 0)
+        self.assertEqual(result["metrics"]["failed_examples"], 1)
 
     def test_frozen_fixture_and_metric_shape(self) -> None:
         cases = load_cases("test")

@@ -463,6 +463,53 @@ class StructuredMemoryWorkflowTest(unittest.IsolatedAsyncioTestCase):
         )
         queued.assert_awaited_once()
 
+    async def test_retry_cannot_swap_one_successful_chunk_for_another(self) -> None:
+        first = await self._start()
+        calls = 0
+
+        async def first_chunk_only(inputs, *_args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise StructuredMemoryError("private invalid output")
+            return self._result(inputs, fact=True)
+
+        with patch(
+            "app.queue.tasks.structured_memory.extract_structured_memory",
+            side_effect=first_chunk_only,
+        ):
+            await run_structured_memory_job(uuid.UUID(first["job_id"]))
+        original_facts = (await self.client.get(
+            f"/api/projects/{self.project_id}/facts"
+        )).json()
+
+        second = await self._start()
+        calls = 0
+
+        async def second_chunk_only(inputs, *_args, **_kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise StructuredMemoryError("private invalid output")
+            return self._result(inputs, fact=True, ended=True)
+
+        with patch(
+            "app.queue.tasks.structured_memory.extract_structured_memory",
+            side_effect=second_chunk_only,
+        ):
+            await run_structured_memory_job(uuid.UUID(second["job_id"]))
+
+        status_payload = (await self.client.get(
+            f"/api/projects/{self.project_id}/structured-memory/status"
+        )).json()
+        self.assertEqual(
+            status_payload["job"]["error_code"],
+            "STRUCTURED_MEMORY_NOT_IMPROVED",
+        )
+        self.assertEqual((await self.client.get(
+            f"/api/projects/{self.project_id}/facts"
+        )).json(), original_facts)
+
 
 if __name__ == "__main__":
     unittest.main()

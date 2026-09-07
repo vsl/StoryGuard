@@ -212,11 +212,13 @@ async def evaluate(prompt_version: str, cases: list[dict], client: httpx.AsyncCl
         predicted = ValidatedMemory((), (), (), 0, ())
         result = None
         error = None
+        repair_count = 0
         try:
             result = await extract_structured_memory(case["inputs"], prompt_version, client)
             predicted = result.memory
         except (StructuredMemoryError, ConnectionError, TimeoutError, httpx.HTTPError) as exc:
             error = type(exc).__name__
+            repair_count = int(isinstance(exc, StructuredMemoryError))
         expected_sets, predicted_sets = _sets(case["expected_output"]), _sets(predicted)
         semantic_expected = _semantic_sets(case["expected_output"])
         semantic_predicted = _semantic_sets(predicted)
@@ -231,7 +233,7 @@ async def evaluate(prompt_version: str, cases: list[dict], client: httpx.AsyncCl
             "raw_count": result.raw_count if result else 0,
             "rejected_count": result.memory.rejected_count if result else 0,
             "rejection_reasons": list(result.memory.rejection_reasons) if result else [],
-            "repair_count": result.repair_count if result else 1,
+            "repair_count": result.repair_count if result else repair_count,
             "usage": result.usage if result else {},
             "latency_ms": result.latency_ms if result else (time.perf_counter() - started) * 1000,
             "resolved_model": result.model if result else None,

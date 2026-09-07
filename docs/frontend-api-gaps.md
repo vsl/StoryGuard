@@ -1,6 +1,7 @@
 # Frontend / Backend API Gap Matrix
 
-Snapshot: 2026-09-06, including Lesson 5.3 structured story memory.
+Snapshot: 2026-09-07, including Lesson 5.3 structured story memory and its
+post-implementation review.
 
 The frontend is wired to the contracts in the backend and UI specifications.
 This document records what the repository actually publishes today. “Missing”
@@ -44,25 +45,36 @@ Both events remain independently queryable. Exact duplicates from overlapping
 chunks are collapsed. Invalid model output gets one repair; a still-invalid
 chunk is omitted and counted, without leaking raw errors or replacing the last
 usable run. A changed manuscript version or entity-resolution state fences the
-worker before and during extraction.
+worker before, during, and immediately before completing extraction. The
+resolution fingerprint includes entity state, raw aliases, mention assignments,
+surface text and source spans. Read APIs hide runs from older fingerprints.
+Retries cannot replace a usable run unless they preserve every previously
+successful chunk; succeeding on a different number-equivalent set is not an
+improvement.
 
-Verification: all 112 PostgreSQL-backed backend tests passed with two optional
-skips; the focused lifecycle tests cover start-to-end updates, evidence offsets,
-scope, idempotency, partial failure and safe errors. All 17 frontend tests,
-ESLint, TypeScript and the Next.js production build passed. A real browser run
-without application API interception exercised UI → API → RabbitMQ/Taskiq → V7
-via LiteLLM → PostgreSQL → Story Bible/Timeline. The model accepted the divorce
-chunk and safely omitted the wedding chunk on both smoke attempts; the UI showed
-`1/2 chunks`, an ended `spouse_of` relationship, its `end_event_id`, exact source
-excerpt/evidence ID, and the divorce event in chronological Timeline. This is a
-functional and fail-closed smoke check, not an accuracy benchmark.
+Verification: the full backend suite ran 120 tests against PostgreSQL with two
+optional skips; focused lifecycle tests cover start-to-end updates, evidence
+offsets, scope, idempotency, stale fingerprints, partial failure, non-regressive
+chunk sets and safe errors. All 21 frontend tests, formatting, ESLint, TypeScript
+and the Next.js production build passed. A real browser run without application
+API interception exercised UI → API → RabbitMQ/Taskiq → V7 via LiteLLM →
+PostgreSQL → Story Bible/Timeline/Manuscript. The current model safely omitted
+the wedding chunk, accepted the divorce event, and removed the associated
+relationship after one repair because its event omitted both entity roles. The
+UI showed `1/2 chunks`, the partial-failure warning, chronological and narrative
+time, Timeline evidence, and an exact source-range highlight. This is a
+functional and fail-closed smoke check, not an accuracy benchmark; relationship
+recall remains a measured AI-quality risk rather than a silently relaxed
+validator.
 
 The promoted V7 experiment recorded semantic macro F1 0.715 with 1/12 failed
 cases; the stricter V8 semantic verifier regressed to 0.200 with 9/12 failures
 and was not promoted. LangSmith tracing was disabled for the local smoke, so no
-trace ID exists. A clean Compose image rebuild remains unverified because Docker
-Hub timed out while resolving `python:3.14.4-slim`; the same-dependency local
-images were run with current-code overlays instead.
+trace ID exists. Transport failures now report zero repair attempts in the
+experiment metrics instead of inventing a repair call. A clean Compose image
+rebuild remains unverified because Docker Hub timed out while resolving
+`python:3.14.4-slim`; the same-dependency local images were run with current-code
+overlays instead.
 
 ### Story Bible navigation correction (2026-09-01)
 

@@ -175,7 +175,10 @@ export function EntityResolutionPanel({
         Automatic merging: {data.auto_apply ? "ON" : "OFF"}
       </p>
       <p className="mt-1 text-sm text-muted">
-        {data.pipeline === "coreference_gemma" ? `xCoRe + ${data.model}` : data.model} ·{" "}
+        {data.pipeline === "coreference_gemma"
+          ? `xCoRe + ${data.model}`
+          : data.model}{" "}
+        ·{" "}
         {data.auto_apply
           ? "Validated merge and keep-separate decisions are applied immediately. Applied pairs leave this list, and the character list updates as processing continues. Only uncertain or conflicting cases need review; technical failures are shown separately."
           : "Review mode: every merge or keep-separate decision requires your confirmation."}
@@ -183,16 +186,16 @@ export function EntityResolutionPanel({
       {data.pipeline === "coreference_gemma" && (
         <p className="mt-2 text-sm">
           {data.coreference_merge_count ?? 0} merges applied without Gemma;{" "}
-          {data.gemma_comparison_count ?? 0} pairs sent to Gemma. Coreference links
-          can be wrong; they are not a certainty score.
+          {data.gemma_comparison_count ?? 0} pairs sent to Gemma. Coreference
+          links can be wrong; they are not a certainty score.
         </p>
       )}
       {busy && data.job?.stage === "coreference" && (
         <p className="mt-2 text-sm">
           Preparing coreference groups…{" "}
-          {Math.floor((data.job.current_stage_elapsed_ms ?? 0) / 1000)}s elapsed.
-          Loading and scanning can take more than a minute. Completed groups are
-          cached for Resume; Stop discards an unfinished scan.
+          {Math.floor((data.job.current_stage_elapsed_ms ?? 0) / 1000)}s
+          elapsed. Loading and scanning can take more than a minute. Completed
+          groups are cached for Resume; Stop discards an unfinished scan.
         </p>
       )}
       <p className="mt-1 text-sm text-muted">

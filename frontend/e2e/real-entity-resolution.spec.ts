@@ -31,15 +31,40 @@ test("real resolution stops, resumes, and automatically applies an evidence-back
       timeout: 150_000,
     });
     await page.getByRole("link", { name: "Story Bible" }).click();
-    for (const label of ["characters", "facilities", "Countries & cities", "locations", "organizations", "vehicles"]) {
-      await expect(page.getByRole("button", { name: label, exact: true })).toBeVisible();
+    for (const label of [
+      "characters",
+      "facilities",
+      "Countries & cities",
+      "locations",
+      "organizations",
+      "vehicles",
+    ]) {
+      await expect(
+        page.getByRole("button", { name: label, exact: true }),
+      ).toBeVisible();
     }
-    await expect(page.getByRole("button", { name: "objects", exact: true })).toHaveCount(0);
-    for (const category of ["facility", "gpe", "location", "organization", "vehicle"]) {
-      const response = await page.request.get(`/api/projects/${projectId}/entities?type=${category}`);
+    await expect(
+      page.getByRole("button", { name: "objects", exact: true }),
+    ).toHaveCount(0);
+    for (const category of [
+      "facility",
+      "gpe",
+      "location",
+      "organization",
+      "vehicle",
+    ]) {
+      const response = await page.request.get(
+        `/api/projects/${projectId}/entities?type=${category}`,
+      );
       expect(response.ok()).toBe(true);
     }
-    expect((await page.request.get(`/api/projects/${projectId}/entities?type=object`)).status()).toBe(422);
+    expect(
+      (
+        await page.request.get(
+          `/api/projects/${projectId}/entities?type=object`,
+        )
+      ).status(),
+    ).toBe(422);
     await expect(
       page.getByText("Automatic merging: ON", { exact: true }),
     ).toBeVisible();
@@ -116,7 +141,10 @@ test("real resolution stops, resumes, and automatically applies an evidence-back
     ).json();
     expect(versions[0].status).toBe("ready");
     expect(versions[0].extraction_model).toBe("gliner2.5-base-v1");
-    await page.screenshot({ path: test.info().outputPath("combined-resolution.png"), fullPage: true });
+    await page.screenshot({
+      path: test.info().outputPath("combined-resolution.png"),
+      fullPage: true,
+    });
   } finally {
     if (projectId) await page.request.delete(`/api/projects/${projectId}`);
   }

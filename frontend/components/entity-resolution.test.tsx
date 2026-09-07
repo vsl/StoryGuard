@@ -89,7 +89,11 @@ describe("EntityResolutionCard", () => {
         ),
       ).toBeInTheDocument();
       expect(screen.getByText(/xCoRe \+ gemma4:e4b/)).toBeInTheDocument();
-      expect(screen.getByText(/0 merges applied without Gemma; 3 pairs sent to Gemma/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /0 merges applied without Gemma; 3 pairs sent to Gemma/,
+        ),
+      ).toBeInTheDocument();
       expect(
         screen.getByText(
           autoApply
@@ -143,74 +147,81 @@ describe("EntityResolutionCard", () => {
     });
   });
 
-  it.each(["running", "queued"])("stops a %s job and offers Resume after reload", async (status) => {
-    let stopped = false;
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation(async (url) => {
-        if (String(url).endsWith("/jobs/job-1/stop")) stopped = true;
-        return new Response(
-          JSON.stringify({
-            manuscript_version_id: "version-2",
-            items: [],
-            total: 3,
-            remaining: 3,
-            review_count: 0,
-            applied_count: 0,
-            successful_count: 0,
-            error_count: 0,
-            candidate_limit_reached: false,
-            auto_apply: true,
-            model: "gemma4:e4b",
-            request_timeout_seconds: 180,
-            job: {
-              id: "job-1",
-              status: stopped ? "cancelled" : status,
-              stage: "coreference",
-              current_stage_elapsed_ms: 61_000,
-              completed: 0,
+  it.each(["running", "queued"])(
+    "stops a %s job and offers Resume after reload",
+    async (status) => {
+      let stopped = false;
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async (url) => {
+          if (String(url).endsWith("/jobs/job-1/stop")) stopped = true;
+          return new Response(
+            JSON.stringify({
+              manuscript_version_id: "version-2",
+              items: [],
               total: 3,
-            },
-          }),
-          { headers: { "content-type": "application/json" } },
+              remaining: 3,
+              review_count: 0,
+              applied_count: 0,
+              successful_count: 0,
+              error_count: 0,
+              candidate_limit_reached: false,
+              auto_apply: true,
+              model: "gemma4:e4b",
+              request_timeout_seconds: 180,
+              job: {
+                id: "job-1",
+                status: stopped ? "cancelled" : status,
+                stage: "coreference",
+                current_stage_elapsed_ms: 61_000,
+                completed: 0,
+                total: 3,
+              },
+            }),
+            { headers: { "content-type": "application/json" } },
+          );
+        });
+      const mount = () =>
+        render(
+          <QueryClientProvider
+            client={
+              new QueryClient({ defaultOptions: { queries: { retry: false } } })
+            }
+          >
+            <EntityResolutionPanel projectId="project-1" onEvidence={vi.fn()} />
+          </QueryClientProvider>,
         );
-      });
-    const mount = () =>
-      render(
-        <QueryClientProvider
-          client={
-            new QueryClient({ defaultOptions: { queries: { retry: false } } })
-          }
-        >
-          <EntityResolutionPanel projectId="project-1" onEvidence={vi.fn()} />
-        </QueryClientProvider>,
+      const first = mount();
+      expect(
+        await screen.findByText(/Resolution continues automatically/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Resume resolution" }),
+      ).not.toBeInTheDocument();
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Stop resolution" }),
       );
-    const first = mount();
-    expect(await screen.findByText(/Resolution continues automatically/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Resume resolution" })).not.toBeInTheDocument();
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Stop resolution" }),
-    );
-    expect(
-      await screen.findByRole("button", { name: "Resume resolution" }),
-    ).toBeEnabled();
-    expect(
-      fetchMock.mock.calls.find(([url]) =>
-        String(url).endsWith("/jobs/job-1/stop"),
-      )?.[1],
-    ).toMatchObject({
-      method: "POST",
-      body: JSON.stringify({ manuscript_version_id: "version-2" }),
-    });
-    first.unmount();
-    mount();
-    expect(
-      await screen.findByRole("button", { name: "Resume resolution" }),
-    ).toBeEnabled();
-    expect(
-      screen.queryByRole("button", { name: "Stop resolution" }),
-    ).not.toBeInTheDocument();
-  });
+      expect(
+        await screen.findByRole("button", { name: "Resume resolution" }),
+      ).toBeEnabled();
+      expect(
+        fetchMock.mock.calls.find(([url]) =>
+          String(url).endsWith("/jobs/job-1/stop"),
+        )?.[1],
+      ).toMatchObject({
+        method: "POST",
+        body: JSON.stringify({ manuscript_version_id: "version-2" }),
+      });
+      first.unmount();
+      mount();
+      expect(
+        await screen.findByRole("button", { name: "Resume resolution" }),
+      ).toBeEnabled();
+      expect(
+        screen.queryByRole("button", { name: "Stop resolution" }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("explains technical failure without calling it a model review decision", () => {
     render(

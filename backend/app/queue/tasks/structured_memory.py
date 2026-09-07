@@ -189,9 +189,8 @@ async def run_structured_memory_job(job_id: uuid.UUID) -> None:
                 f"structured-memory:{version_id}:{PROMPT_VERSION}:{expected_state}"
             )
             best_prior = await session.scalar(
-                select(func.max(coverage.c.completed_chunks))
-                .select_from(coverage)
-                .join(JobRun, JobRun.id == coverage.c.job_id)
+                select(JobRun.id)
+                .join(coverage, coverage.c.job_id == JobRun.id)
                 .where(
                     JobRun.id != job_id,
                     JobRun.job_type == "structured_memory",
@@ -200,13 +199,31 @@ async def run_structured_memory_job(job_id: uuid.UUID) -> None:
                     JobRun.status == "completed",
                     JobRun.idempotency_key.like(f"{key_prefix}%"),
                 )
+                .order_by(
+                    coverage.c.completed_chunks.desc(),
+                    JobRun.created_at.desc(),
+                    JobRun.id.desc(),
+                )
+                .limit(1)
             )
-            if best_prior is not None and len(sources) - failed < best_prior:
+            current_chunks = set(await session.scalars(select(
+                MemoryChunkResult.chunk_id
+            ).where(
+                MemoryChunkResult.job_id == job_id,
+                MemoryChunkResult.status == "completed",
+            )))
+            prior_chunks = set(await session.scalars(select(
+                MemoryChunkResult.chunk_id
+            ).where(
+                MemoryChunkResult.job_id == best_prior,
+                MemoryChunkResult.status == "completed",
+            ))) if best_prior else set()
+            if not prior_chunks <= current_chunks:
                 job.status = "failed"
                 job.stage = "failed"
                 job.error_code = "STRUCTURED_MEMORY_NOT_IMPROVED"
                 job.error_message_safe = (
-                    "This attempt covered fewer manuscript chunks; "
+                    "This attempt did not preserve all previously covered manuscript chunks; "
                     "the previous result remains active."
                 )
                 return
