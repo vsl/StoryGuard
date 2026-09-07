@@ -12,6 +12,7 @@ from app.api.projects import router as projects_router
 from app.api.ingestion import router as ingestion_router
 from app.api.experiments import router as experiments_router
 from app.api.entity_resolution import router as entity_resolution_router
+from app.api.structured_memory import router as structured_memory_router
 from app.db.session import engine
 from app.health import readiness_payload
 from app.queue.broker import broker
@@ -34,6 +35,7 @@ app.include_router(projects_router)
 app.include_router(ingestion_router)
 app.include_router(experiments_router)
 app.include_router(entity_resolution_router)
+app.include_router(structured_memory_router)
 
 
 async def _postgres_ready() -> None:

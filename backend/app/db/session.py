@@ -11,6 +11,7 @@ from app.db.models import (  # noqa: F401
     manuscript_version,
     narrative,
     project,
+    structured_memory,
 )
 
 engine = create_async_engine(os.environ["DATABASE_URL"], pool_pre_ping=True)

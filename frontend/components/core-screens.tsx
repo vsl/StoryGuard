@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EvidenceDrawer } from "@/components/evidence-drawer";
 import { EntityResolutionPanel } from "@/components/entity-resolution";
@@ -53,8 +53,15 @@ type ChapterDetail = Chapter & {
 };
 type Entity = {
   id: string;
-  name: string;
+  name?: string;
   type?: string;
+  title?: string;
+  subject?: string;
+  predicate?: string;
+  fact_type?: string;
+  value?: string;
+  chronological_time?: string;
+  participants?: string[];
   role?: string;
   aliases?: string[];
   description?: string;
@@ -78,11 +85,28 @@ type StoryEvent = {
   title?: string;
   description?: string;
   chronological_time?: string;
+  chronological_time_normalized?: string;
   narrative_position?: string;
   chapter?: string;
   location?: string;
   participants?: string[];
   evidence?: Evidence[];
+};
+type MemoryStatus = {
+  manuscript_version_id: string | null;
+  job: {
+    id: string;
+    status: string;
+    stage?: string | null;
+    error_code?: string | null;
+    error_message_safe?: string | null;
+  } | null;
+  completed_chunks: number;
+  failed_chunks: number;
+  total_chunks: number;
+  facts: number;
+  events: number;
+  relationships: number;
 };
 type Issue = {
   id: string;
@@ -335,6 +359,8 @@ export function ManuscriptScreen({ projectId }: { projectId: string }) {
   const router = useRouter();
   const selected = query.get("chapter") ?? "";
   const evidenceId = query.get("evidence") ?? "";
+  const evidenceStart = Number(query.get("start"));
+  const evidenceEnd = Number(query.get("end"));
   const [filter, setFilter] = useState("");
   const chapters = useEndpoint<Chapter[] | { items?: Chapter[] }>(
     ["chapters", projectId],
@@ -354,12 +380,31 @@ export function ManuscriptScreen({ projectId }: { projectId: string }) {
     const next = new URLSearchParams(query.toString());
     next.set("chapter", id);
     next.delete("evidence");
+    next.delete("start");
+    next.delete("end");
     router.replace(`?${next}`);
   }
   const paragraphs =
     detail.data?.paragraphs ??
     detail.data?.scenes?.flatMap((scene) => scene.paragraphs ?? []) ??
     (detail.data?.text ? [{ id: "chapter-text", text: detail.data.text }] : []);
+  const chapterLength = detail.data?.text
+    ? Array.from(detail.data.text).length
+    : 0;
+  const hasEvidenceRange =
+    !!evidenceId &&
+    Number.isInteger(evidenceStart) &&
+    Number.isInteger(evidenceEnd) &&
+    evidenceStart >= 0 &&
+    evidenceEnd > evidenceStart &&
+    evidenceEnd <= chapterLength;
+
+  useEffect(() => {
+    if (!detail.data || !evidenceId) return;
+    document
+      .querySelector<HTMLElement>("[data-evidence-highlight='true']")
+      ?.scrollIntoView?.({ block: "center" });
+  }, [detail.data, evidenceId]);
   return (
     <>
       <PageHeader
@@ -436,20 +481,43 @@ export function ManuscriptScreen({ projectId }: { projectId: string }) {
               </div>
               <div className="mx-auto mt-8 max-w-3xl space-y-5 font-serif text-[17px] leading-8">
                 {paragraphs.map((paragraph) => {
-                  const highlighted =
+                  const rangeHighlighted =
+                    paragraph.id === "chapter-text" && hasEvidenceRange;
+                  const codePoints = rangeHighlighted
+                    ? Array.from(paragraph.text)
+                    : [];
+                  const paragraphHighlighted =
                     paragraph.evidence_ids?.includes(evidenceId) ||
                     paragraph.id === evidenceId;
                   return (
                     <p
                       id={paragraph.id}
                       key={paragraph.id}
+                      data-evidence-highlight={
+                        paragraphHighlighted ? "true" : undefined
+                      }
                       className={
-                        highlighted
+                        paragraphHighlighted
                           ? "rounded bg-[var(--amber-soft)] px-2 py-1 ring-1 ring-[#efd594]"
                           : ""
                       }
                     >
-                      {paragraph.text}
+                      {rangeHighlighted ? (
+                        <>
+                          {codePoints.slice(0, evidenceStart).join("")}
+                          <mark
+                            data-evidence-highlight="true"
+                            className="rounded bg-[var(--amber-soft)] px-1 ring-1 ring-[#efd594]"
+                          >
+                            {codePoints
+                              .slice(evidenceStart, evidenceEnd)
+                              .join("")}
+                          </mark>
+                          {codePoints.slice(evidenceEnd).join("")}
+                        </>
+                      ) : (
+                        paragraph.text
+                      )}
                     </p>
                   );
                 })}
@@ -483,6 +551,115 @@ const bibleTabs = [
   "events",
 ] as const;
 
+function MemoryBuildPanel({
+  projectId,
+  onFinished,
+}: {
+  projectId: string;
+  onFinished: () => void;
+}) {
+  const status = useEndpoint<MemoryStatus>(
+    ["structured-memory-status", projectId],
+    `/projects/${projectId}/structured-memory/status`,
+  );
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
+  const finished = useRef("");
+  const job = status.data?.job;
+  const refetchStatus = status.refetch;
+  const busy = ["queued", "running"].includes(status.data?.job?.status ?? "");
+  const partial = job?.status === "completed" && !!job.error_code;
+  const statusUnavailable = !!status.error && !status.data;
+
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setInterval(() => void refetchStatus(), 2000);
+    return () => window.clearInterval(timer);
+  }, [busy, refetchStatus]);
+
+  useEffect(() => {
+    const job = status.data?.job;
+    if (
+      !job ||
+      !["completed", "failed"].includes(job.status) ||
+      finished.current === job.id
+    )
+      return;
+    finished.current = job.id;
+    onFinished();
+  }, [onFinished, status.data?.job]);
+
+  async function start() {
+    if (!status.data?.manuscript_version_id) return;
+    setStarting(true);
+    setError("");
+    try {
+      await api(`/projects/${projectId}/structured-memory/run`, {
+        method: "POST",
+        body: JSON.stringify({
+          manuscript_version_id: status.data.manuscript_version_id,
+          rebuild: job?.status === "completed" && !job.error_code,
+        }),
+      });
+      await status.refetch();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  const label = busy
+    ? "Building story memory…"
+    : job?.status === "failed" || partial
+      ? "Retry story memory"
+      : job?.status === "completed"
+        ? "Rebuild story memory"
+        : "Build story memory";
+  return (
+    <Card className="mb-4 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div role="status" className="text-sm">
+        <p className="font-semibold">
+          {partial
+            ? "Story memory partially ready"
+            : job?.status === "completed"
+              ? "Story memory ready"
+              : "Story memory"}
+        </p>
+        <p className="mt-1 text-muted">
+          {job
+            ? `${status.data?.completed_chunks ?? 0}/${status.data?.total_chunks ?? 0} chunks${status.data?.failed_chunks ? ` · ${status.data.failed_chunks} failed` : ""} · ${status.data?.facts ?? 0} facts · ${status.data?.events ?? 0} events · ${status.data?.relationships ?? 0} relationships`
+            : status.data?.manuscript_version_id
+              ? "Build facts, events, and relationships after entity resolution."
+              : "Upload and process a manuscript before building story memory."}
+        </p>
+        {(status.error || job?.error_message_safe || error) && (
+          <p role="alert" className="mt-1 text-[var(--danger)]">
+            {error || job?.error_message_safe || errorMessage(status.error)}
+          </p>
+        )}
+        {(busy || job?.status === "failed") && (
+          <p className="mt-1 text-muted">
+            Visible records, if any, are from the last completed build.
+          </p>
+        )}
+      </div>
+      <Button
+        onClick={statusUnavailable ? () => void status.refetch() : start}
+        disabled={
+          starting ||
+          busy ||
+          status.isLoading ||
+          (!statusUnavailable && !status.data?.manuscript_version_id)
+        }
+      >
+        <Play className="size-4" />
+        {statusUnavailable ? "Retry status" : starting ? "Starting…" : label}
+      </Button>
+    </Card>
+  );
+}
+
 export function StoryBibleScreen({ projectId }: { projectId: string }) {
   const params = useSearchParams();
   const router = useRouter();
@@ -500,7 +677,8 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const detailPane = useRef<HTMLElement>(null);
   const entityType = entityTabTypes[tab];
-  const endpoint = entityType && tab !== "characters" ? `entities?type=${entityType}` : tab;
+  const endpoint =
+    entityType && tab !== "characters" ? `entities?type=${entityType}` : tab;
   const result = useEndpoint<
     Entity[] | Fact[] | StoryEvent[] | { items?: Entity[] }
   >(["story-bible", projectId, tab], `/projects/${projectId}/${endpoint}`);
@@ -510,10 +688,22 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
     !!selected && !!entityType,
   );
   const rawItems = getList(result.data as Entity[] | { items?: Entity[] });
+  const structuredTab = ["relationships", "facts", "events"].includes(tab);
   const items = rawItems.filter((item) => {
-    const matchesSearch = String(
-      item.name ?? item.subject ?? item.title ?? item.value ?? "",
-    )
+    const matchesSearch = [
+      item.name,
+      item.subject,
+      item.predicate,
+      item.value,
+      item.title,
+      item.description,
+      item.source,
+      item.target,
+      item.status,
+      item.chronological_time,
+    ]
+      .filter(Boolean)
+      .join(" ")
       .toLowerCase()
       .includes(search.toLowerCase());
     if (tab !== "facts") return matchesSearch;
@@ -521,7 +711,7 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
       matchesSearch &&
       (!factEntity ||
         String(item.subject ?? item.entity ?? "") === factEntity) &&
-      (!factType || String(item.predicate ?? "") === factType) &&
+      (!factType || String(item.fact_type ?? "") === factType) &&
       (!factChapter ||
         String(item.chapter ?? item.source ?? "") === factChapter) &&
       (!factConfidence || String(item.confidence ?? "") === factConfidence)
@@ -532,6 +722,13 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
       rawItems.map((item) => String(item[field] ?? "")).filter(Boolean),
     ),
   ];
+  const hasListFilters =
+    !!search ||
+    (tab === "facts" &&
+      !!(factEntity || factType || factChapter || factConfidence));
+  const selectedItem = entityType
+    ? detail.data
+    : rawItems.find((item) => String(item.id) === selected);
   function navigate(nextTab: string, id?: string) {
     const next = new URLSearchParams();
     next.set("tab", nextTab);
@@ -549,11 +746,23 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
         title="Story Bible"
         description="AI-extracted entities and facts remain traceable to manuscript evidence."
       />
+      {structuredTab && (
+        <MemoryBuildPanel
+          projectId={projectId}
+          onFinished={() => void result.refetch()}
+        />
+      )}
       <Card className="overflow-hidden">
-        <div className="flex overflow-x-auto border-b border-[var(--line)] px-3">
+        <div
+          role="tablist"
+          aria-label="Story Bible sections"
+          className="flex overflow-x-auto border-b border-[var(--line)] px-3"
+        >
           {bibleTabs.map((item) => (
             <button
               key={item}
+              role="tab"
+              aria-selected={tab === item}
               onClick={() => navigate(item)}
               className={`whitespace-nowrap border-b-2 px-4 py-4 text-sm font-semibold capitalize ${tab === item ? "border-[var(--brand)] text-[var(--brand)]" : "border-transparent text-muted"}`}
             >
@@ -572,6 +781,7 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
                 onChange={(event) => setSearch(event.target.value)}
                 className={inputClass}
                 placeholder={`Search ${tab}…`}
+                aria-label={`Search ${tab}`}
               />
               {tab === "facts" && (
                 <div className="mt-2 grid grid-cols-2 gap-2">
@@ -586,7 +796,7 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
                       "Fact type",
                       factType,
                       setFactType,
-                      factOptions("predicate"),
+                      factOptions("fact_type"),
                     ],
                     [
                       "Chapter",
@@ -628,11 +838,13 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
             )}
             {!result.isLoading && !result.error && !items.length && (
               <EmptyState
-                title={`No ${tab} yet`}
+                title={hasListFilters ? `No matching ${tab}` : `No ${tab} yet`}
                 description={
-                  entityType
-                    ? "Run Resolve entities to initialize identities from the extracted mentions."
-                    : "This part of the Story Bible depends on a later course capability."
+                  hasListFilters
+                    ? "Clear or change the search and filters."
+                    : entityType
+                      ? "Run Resolve entities to initialize identities from the extracted mentions."
+                      : "Build story memory to extract supported records from the current manuscript."
                 }
               />
             )}
@@ -683,19 +895,26 @@ export function StoryBibleScreen({ projectId }: { projectId: string }) {
             {detail.error && (
               <ErrorState error={detail.error} retry={() => detail.refetch()} />
             )}
+            {selected && selectedItem && (
+              <EntityDetail entity={selectedItem} onEvidence={setEvidence} />
+            )}
             {selected &&
-              (detail.data ??
-                items.find((item) => String(item.id) === selected)) && (
-                <EntityDetail
-                  entity={
-                    (detail.data ??
-                      items.find((item) => String(item.id) === selected))!
-                  }
-                  onEvidence={setEvidence}
+              !selectedItem &&
+              !detail.isLoading &&
+              !detail.error &&
+              !result.isLoading &&
+              !result.error && (
+                <EmptyState
+                  title="Record no longer available"
+                  description="It may have changed during the latest story-memory build. Select another item."
                 />
               )}
             {entityType && (
-              <div className={selected ? "mt-8 border-t border-[var(--line)] pt-8" : "mt-8"}>
+              <div
+                className={
+                  selected ? "mt-8 border-t border-[var(--line)] pt-8" : "mt-8"
+                }
+              >
                 <EntityResolutionPanel
                   projectId={projectId}
                   onEvidence={setEvidence}
@@ -721,7 +940,19 @@ function EntityDetail({
   entity: Entity;
   onEvidence: (evidence: Evidence) => void;
 }) {
-  const reserved = new Set(["id", "name", "facts", "evidence", "description"]);
+  const title =
+    entity.name ||
+    (entity.subject && entity.predicate
+      ? `${entity.subject} · ${entity.predicate}`
+      : entity.title || entity.value || "Story record");
+  const reserved = new Set([
+    "id",
+    "name",
+    "title",
+    "facts",
+    "evidence",
+    "description",
+  ]);
   const attributes = Object.entries(entity).filter(
     ([key, value]) =>
       !reserved.has(key) &&
@@ -735,7 +966,7 @@ function EntityDetail({
       <p className="text-xs font-bold uppercase tracking-wider text-[var(--brand)]">
         {entity.type ?? "Story entity"}
       </p>
-      <h2 className="page-title mt-2 text-3xl font-semibold">{entity.name}</h2>
+      <h2 className="page-title mt-2 text-3xl font-semibold">{title}</h2>
       {entity.description && (
         <p className="mt-3 text-sm leading-6 text-muted">
           {entity.description}
@@ -746,6 +977,14 @@ function EntityDetail({
           <span className="text-sm text-muted">Aliases</span>
           {entity.aliases.map((alias) => (
             <Badge key={alias}>{alias}</Badge>
+          ))}
+        </div>
+      )}
+      {!!entity.participants?.length && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted">Participants</span>
+          {entity.participants.map((participant) => (
+            <Badge key={participant}>{participant}</Badge>
           ))}
         </div>
       )}
@@ -809,17 +1048,29 @@ export function TimelineScreen({ projectId }: { projectId: string }) {
   const [character, setCharacter] = useState("");
   const [location, setLocation] = useState("");
   const [eventType, setEventType] = useState("");
+  const [evidence, setEvidence] = useState<Evidence | null>(null);
   const events = useEndpoint<StoryEvent[] | { items?: StoryEvent[] }>(
     ["events", projectId],
     `/projects/${projectId}/events`,
   );
   const allEvents = useMemo(() => getList(events.data), [events.data]);
-  const list = allEvents.filter(
-    (event) =>
-      (!character || event.participants?.includes(character)) &&
-      (!location || event.location === location) &&
-      (!eventType || event.type === eventType),
-  );
+  const list = allEvents
+    .map((event, index) => ({ event, index }))
+    .filter(
+      ({ event }) =>
+        (!character || event.participants?.includes(character)) &&
+        (!location || event.location === location) &&
+        (!eventType || event.type === eventType),
+    )
+    .sort((left, right) => {
+      if (order === "narrative") return left.index - right.index;
+      const leftTime = left.event.chronological_time_normalized;
+      const rightTime = right.event.chronological_time_normalized;
+      if (!leftTime) return rightTime ? 1 : left.index - right.index;
+      if (!rightTime) return -1;
+      return leftTime.localeCompare(rightTime) || left.index - right.index;
+    })
+    .map(({ event }) => event);
   const eventOptions = (values: (string | undefined)[]) => [
     ...new Set(values.filter((value): value is string => !!value)),
   ];
@@ -833,18 +1084,24 @@ export function TimelineScreen({ projectId }: { projectId: string }) {
           <div className="rounded-lg border border-[var(--line)] bg-white p-1">
             <Button
               variant={order === "chronological" ? "primary" : "ghost"}
+              aria-pressed={order === "chronological"}
               onClick={() => setOrder("chronological")}
             >
               Chronological
             </Button>
             <Button
               variant={order === "narrative" ? "primary" : "ghost"}
+              aria-pressed={order === "narrative"}
               onClick={() => setOrder("narrative")}
             >
               Narrative
             </Button>
           </div>
         }
+      />
+      <MemoryBuildPanel
+        projectId={projectId}
+        onFinished={() => void events.refetch()}
       />
       <div className="mb-4 grid gap-2 sm:grid-cols-3">
         {[
@@ -893,8 +1150,16 @@ export function TimelineScreen({ projectId }: { projectId: string }) {
         )}
         {!events.isLoading && !events.error && !list.length && (
           <EmptyState
-            title="No timeline yet"
-            description="Events appear after StoryGuard extracts them from a manuscript."
+            title={
+              character || location || eventType
+                ? "No matching events"
+                : "No timeline yet"
+            }
+            description={
+              character || location || eventType
+                ? "Clear or change the timeline filters."
+                : "Build story memory to extract supported events from the current manuscript."
+            }
           />
         )}
         {list.map((event, index) => (
@@ -920,15 +1185,39 @@ export function TimelineScreen({ projectId }: { projectId: string }) {
                 </p>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
+                {event.participants?.map((participant) => (
+                  <Badge key={participant}>{participant}</Badge>
+                ))}
                 {event.location && <Badge tone="info">{event.location}</Badge>}
-                {event.narrative_position && (
-                  <Badge>{event.narrative_position}</Badge>
+                {order === "chronological" && event.narrative_position && (
+                  <Badge>Narrative: {event.narrative_position}</Badge>
+                )}
+                {order === "narrative" && event.chronological_time && (
+                  <Badge>Chronological: {event.chronological_time}</Badge>
                 )}
               </div>
+              {!!event.evidence?.length && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {event.evidence.map((item, evidenceIndex) => (
+                    <Button
+                      key={item.id}
+                      variant="ghost"
+                      onClick={() => setEvidence(item)}
+                    >
+                      Source evidence {evidenceIndex + 1}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
           </article>
         ))}
       </Card>
+      <EvidenceDrawer
+        projectId={projectId}
+        evidence={evidence}
+        onClose={() => setEvidence(null)}
+      />
     </>
   );
 }

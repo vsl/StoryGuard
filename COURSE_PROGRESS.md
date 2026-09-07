@@ -30,13 +30,13 @@ completed_lessons:
 current_lesson:
   id: "5.3"
   title: "Facts / events / relationships"
-  status: "not_started"
+  status: "developer_checkpoint_pending"
 
 current_lesson_state:
-  concept_discussed: false
-  implementation_plan_approved: false
-  implementation_done: false
-  tests_done: false
+  concept_discussed: true
+  implementation_plan_approved: true
+  implementation_done: true
+  tests_done: true
   developer_checkpoint_done: false
   learning_done: false
 ```

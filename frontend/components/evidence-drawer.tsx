@@ -16,6 +16,17 @@ export function EvidenceDrawer({
   const query = new URLSearchParams();
   if (evidence.chapter_id) query.set("chapter", evidence.chapter_id);
   query.set("evidence", evidence.id);
+  if (
+    typeof evidence.start_offset === "number" &&
+    typeof evidence.end_offset === "number" &&
+    Number.isInteger(evidence.start_offset) &&
+    Number.isInteger(evidence.end_offset) &&
+    evidence.start_offset >= 0 &&
+    evidence.end_offset > evidence.start_offset
+  ) {
+    query.set("start", String(evidence.start_offset));
+    query.set("end", String(evidence.end_offset));
+  }
   return (
     <Dialog open title="Source evidence" onClose={onClose}>
       <div className="flex flex-wrap gap-2">

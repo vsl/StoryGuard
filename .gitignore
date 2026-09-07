@@ -12,6 +12,9 @@ data/datasets/fixtures/*
 !data/datasets/fixtures/entity_resolution_v2.jsonl
 !data/datasets/fixtures/entity_extraction_v3.jsonl
 !data/datasets/fixtures/entity_extraction_model_eval_v3.jsonl
+!data/datasets/fixtures/structured_memory_v1.jsonl
+!data/datasets/fixtures/structured_memory_v2.jsonl
+!data/datasets/fixtures/structured_memory_v3.jsonl
 frontend/tsconfig.tsbuildinfo
 frontend/coverage/
 frontend/playwright-report/

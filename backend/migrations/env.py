@@ -14,6 +14,18 @@ from app.db.models.job_run import JobRun  # noqa: F401
 from app.db.models.manuscript_version import ManuscriptVersion  # noqa: F401
 from app.db.models.narrative import Chapter, Chunk, Scene  # noqa: F401
 from app.db.models.project import Project  # noqa: F401
+from app.db.models.structured_memory import (  # noqa: F401
+    Event,
+    EventEvidence,
+    EventLocation,
+    EventParticipant,
+    Evidence,
+    Fact,
+    FactEvidence,
+    MemoryChunkResult,
+    Relationship,
+    RelationshipEvidence,
+)
 
 config = context.config
 if config.config_file_name is not None:

@@ -15,6 +15,8 @@ describe("EvidenceDrawer", () => {
           chapter: "Chapter 2",
           scene: "Scene 1",
           text: "His green eyes tracked the beam.",
+          start_offset: 42,
+          end_offset: 74,
         }}
         onClose={close}
       />,
@@ -24,7 +26,7 @@ describe("EvidenceDrawer", () => {
       screen.getByRole("link", { name: "Open in manuscript" }),
     ).toHaveAttribute(
       "href",
-      "/projects/project-1/manuscript?chapter=chapter-2&evidence=ev-1",
+      "/projects/project-1/manuscript?chapter=chapter-2&evidence=ev-1&start=42&end=74",
     );
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
     expect(close).toHaveBeenCalled();

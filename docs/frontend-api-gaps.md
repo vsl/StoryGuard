@@ -1,6 +1,6 @@
 # Frontend / Backend API Gap Matrix
 
-Snapshot: 2026-08-31, including the six-category entity scope cleanup.
+Snapshot: 2026-09-06, including Lesson 5.3 structured story memory.
 
 The frontend is wired to the contracts in the backend and UI specifications.
 This document records what the repository actually publishes today. “Missing”
@@ -27,6 +27,42 @@ or the 30-minute scan limit triggers a visible Gemma fallback. Existing Gemma
 timeouts and the candidate ceiling remain. Bounded worker batches now continue
 automatically; the user does not have to Resume after each work limit. Full-book
 speedup is not established.
+
+### Structured story memory (2026-09-06)
+
+After entity resolution completes, Story Bible and Timeline can explicitly
+start a version-pinned background build. Taskiq sends the job through RabbitMQ;
+the worker supplies each manuscript chunk, its server-issued evidence block,
+and only the resolved entities present in that chunk to structured-memory prompt
+V7. Validated facts, events, relationships, citations, chunk coverage, prompt
+version, model alias, latency and token usage are stored in PostgreSQL. The read
+APIs expose only the current project/version and the latest usable run.
+
+Relationship changes are event-backed: a start event initializes a relationship,
+and a later end event updates that row with `end_event_id` and `status=ended`.
+Both events remain independently queryable. Exact duplicates from overlapping
+chunks are collapsed. Invalid model output gets one repair; a still-invalid
+chunk is omitted and counted, without leaking raw errors or replacing the last
+usable run. A changed manuscript version or entity-resolution state fences the
+worker before and during extraction.
+
+Verification: all 112 PostgreSQL-backed backend tests passed with two optional
+skips; the focused lifecycle tests cover start-to-end updates, evidence offsets,
+scope, idempotency, partial failure and safe errors. All 17 frontend tests,
+ESLint, TypeScript and the Next.js production build passed. A real browser run
+without application API interception exercised UI → API → RabbitMQ/Taskiq → V7
+via LiteLLM → PostgreSQL → Story Bible/Timeline. The model accepted the divorce
+chunk and safely omitted the wedding chunk on both smoke attempts; the UI showed
+`1/2 chunks`, an ended `spouse_of` relationship, its `end_event_id`, exact source
+excerpt/evidence ID, and the divorce event in chronological Timeline. This is a
+functional and fail-closed smoke check, not an accuracy benchmark.
+
+The promoted V7 experiment recorded semantic macro F1 0.715 with 1/12 failed
+cases; the stricter V8 semantic verifier regressed to 0.200 with 9/12 failures
+and was not promoted. LangSmith tracing was disabled for the local smoke, so no
+trace ID exists. A clean Compose image rebuild remains unverified because Docker
+Hub timed out while resolving `python:3.14.4-slim`; the same-dependency local
+images were run with current-code overlays instead.
 
 ### Story Bible navigation correction (2026-09-01)
 
@@ -215,6 +251,10 @@ developer learning checkpoint remain unchanged.
 | Resolution review | `GET /api/projects/{project_id}/entity-resolution/candidates`, `POST /api/projects/{project_id}/entity-resolution/{candidate_id}/resolve` | Automatic merging is ON by default. Eligible decisions apply immediately in the same transaction as the model prediction; applied pairs leave the list and character/detail queries refresh during processing. Genuine uncertainty/conflicts and technical errors have separate counters. Failed cards show a safe cause, elapsed time, attempt, and trace ID when available. |
 | Characters and aliases | `GET /api/projects/{project_id}/characters`, `GET /api/projects/{project_id}/characters/{entity_id}` | Current-version identity anchors appear after resolution initializes them. Applied merges group aliases and source evidence. Original mentions remain intact; attributes and facts are not invented. |
 | All supported entities | `GET /api/projects/{project_id}/entities?type=...`, `/entities/{entity_id}` | The same names, aliases and evidence flow for all six entity categories; unsupported types return 422 and cross-project IDs return 404. |
+| Build story memory | `POST /api/projects/{project_id}/structured-memory/run`, `GET /api/projects/{project_id}/structured-memory/status` | Story Bible and Timeline start, poll, retry or rebuild the current resolved manuscript version and show chunk coverage plus safe partial-failure status. |
+| Facts | `GET /api/projects/{project_id}/facts` | Current-run fact list and embedded manuscript evidence. |
+| Events/timeline | `GET /api/projects/{project_id}/events` | Event list with chronological and narrative order, participants, locations and embedded evidence. |
+| Relationships | `GET /api/projects/{project_id}/relationships` | Event-backed active/ended relationship rows and embedded evidence. |
 | Direct search | `GET /api/projects/{project_id}/search?q=...&rerank=...` | Project search uses the current ready manuscript version and can compare hybrid retrieval with or without cross-encoder reranking. |
 | AI Experiment Lab | `GET /api/developer/datasets`, `GET /api/developer/experiment-configs`, `POST/GET /api/developer/experiments`, detail/failures endpoints | Runs diagnostic smoke/development Hybrid-vs-reranker comparisons through memory-isolated background subprocess phases. |
 | Liveness/readiness | `GET /health/live`, `GET /health/ready` | Infrastructure only; not used as product data. |
@@ -274,10 +314,7 @@ also absent, so the forms accept a BCP 47 code and default to the backend defaul
 | Dashboard | Aggregate summary and recent activity contract | Complete counts, continuity health, and recent activity. |
 | Delete old version | No endpoint specified yet | The v1 delete control remains disabled. |
 | Chapter issue badges and evidence anchors | Later continuity/evidence contracts | Chapter text is real now; issue counts and exact evidence spans remain future work. |
-| Character attributes/facts | Later fact-extraction contracts | Character names, aliases and mention evidence are real; inferred attributes and facts remain unavailable. |
-| Facts | `GET /api/projects/{project_id}/facts` | Fact list/filter data and evidence. |
-| Events/timeline | `GET /api/projects/{project_id}/events` | Events and chronological/narrative timeline. |
-| Relationships | `GET /api/projects/{project_id}/relationships` | Relationships tab. |
+| Character attributes | Later attribute-extraction contract | Character names, aliases, mention evidence and separate structured facts are real; a dedicated attribute contract remains unavailable. |
 | Chat streaming | `POST /api/projects/{project_id}/chat/stream` | Full Ask workspace and contextual side panel. |
 | Chat history | Thread list/detail endpoints | Persisted conversation history. |
 | Start continuity | `POST /api/projects/{project_id}/analysis/continuity` | Run-analysis action. |

@@ -77,6 +77,7 @@ services:
       - app.queue.tasks.ingestion
       - app.queue.tasks.experiments
       - app.queue.tasks.entity_resolution
+      - app.queue.tasks.structured_memory
     environment:
       DATABASE_URL: postgresql+asyncpg://storyguard:${POSTGRES_PASSWORD:-storyguard}@postgres:5432/storyguard
       ELASTICSEARCH_URL: http://elasticsearch:9200
