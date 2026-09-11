@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-### Focused core scope — approved 2026-09-07
+### Focused core scope — approved 2026-09-11
 
 `COURSE.md` defines graduation scope and `COURSE_PROGRESS.md` the current
 checkpoint. The required flow is upload → Story Bible → grounded Ask with
@@ -25,7 +25,21 @@ not authorize implementing them during UI polish.
 Security, evidence navigation, and real UI/backend wiring ship with each feature.
 Final polish covers readability, accessibility, navigation, actual progress,
 empty/error/abstention states, and the core demo rather than a new visual system.
-The optional cloud capstone follows local completion under a separate plan.
+GCP/cloud deployment, AI CI/CD/GTM, and launch/rollout controls are outside the
+course. Requested post-core Lesson 12.1 is an isolated LoRA style experiment,
+with results recorded through existing experiment conventions and reports.
+It requires no training screen, editor-profile selector, style judge panel,
+new frontend route, or new API. It does not block the local application demo.
+
+### Delivery boundaries
+
+- 7.1 delivers both Ask entry points over one backend. Manuscript-backed QA remains available without complete structured memory; show relevant memory limitations rather than blocking all questions on its build.
+- Citation navigation opens the actual passage. A valid citation ID alone does not establish semantic support; the backend verifies claims and returns grounded answers or abstention.
+- 7.2 and 8.1 extend existing QA and developer views with bounded tool/planning metadata and actual evaluation failures. No separate agent console or monitoring dashboard is required.
+- 9.1 includes the focused detector, both evidence passages, writer feedback, and evaluation formerly assigned to 9.2. Start with one character-attribute family; legitimate changes and ambiguity must not be presented as confirmed errors.
+- 10.1 verifies recovery and manuscript replacement formerly split across 10.1–10.2. Keep current usable data when rebuilding fails; do not add version diff/restore UI.
+- 11.1 polishes navigation, evidence highlights, keyboard access, progress, and loading/empty/error/abstention states around the real core flow. Add no new product capability during polish.
+- Preserve existing views and keep deferred paths clearly unavailable. Experimental controls stay in the existing developer area; the Reedsy design rehearsal creates no product agents or personalization feature.
 
 StoryGuard is an AI-powered narrative consistency copilot for fiction writers.
 
@@ -2266,6 +2280,7 @@ The focused frontend is complete when:
 - project creation, manuscript upload/viewing, current-version metadata, and real job progress work locally;
 - existing Story Bible, Timeline, search, and version views remain usable;
 - the Ask workspace and contextual panel share one backend and display grounded answers, uncertainty/abstention, and citations opening real manuscript passages;
+- manuscript-backed QA is usable while structured memory is unavailable or incomplete, with relevant limitations visible;
 - focused continuity shows possible character-attribute issues with two passages and working writer feedback;
 - analysis status and existing history are version-aware and never imply stale results apply to the current manuscript;
 - the existing Experiment Lab presents actual comparisons and inspectable failures; developer mode exposes planning/tools and execution metadata, never hidden chain-of-thought;
@@ -2275,8 +2290,11 @@ The focused frontend is complete when:
 - Docker startup and browser access at `http://localhost:3000` work;
 - the demo shows a successful answer, an abstention, a continuity finding, and an experiment comparison.
 
-Optional labs, checking new text, broad continuity, advanced version management,
-and elaborate dashboards are not graduation requirements.
+The requested post-core LoRA experiment has no frontend deliverable and does
+not block core completion. Unrequested optional labs, checking new text, broad
+continuity, advanced version management, and elaborate dashboards are not
+graduation requirements. GCP/cloud deployment and AI CI/CD/GTM are outside the
+course.
 
 ---
 

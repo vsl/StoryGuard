@@ -33,7 +33,7 @@ The coding agent MUST NOT add unrelated infrastructure, frameworks, agents, data
 
 # 1. Product Goal
 
-## Focused portfolio scope — approved 2026-09-07
+## Focused portfolio scope — approved 2026-09-11
 
 `COURSE.md` defines the required core and lesson order; `COURSE_PROGRESS.md`
 defines the current checkpoint. Core delivery is upload → Story Bible → grounded
@@ -41,10 +41,16 @@ Story QA with bounded planning/tools → character-attribute continuity review.
 Use the existing stack, retrieval, reranker, traces, Experiment Lab, gateway,
 and structured memory. Freeze expansion of completed capabilities; fix defects
 that block this flow. Do not require perfect full-book entity resolution.
+Manuscript-backed QA remains usable when structured memory is unavailable or
+incomplete. Missing extracted facts do not establish that an event did not occur.
+Start continuity with one character-attribute family chosen during lesson
+planning; include legitimate changes and ambiguity in evaluation controls.
 
-Core model learning compares one local and one API model with one bounded
-provider fallback. Additional tiers and independent verifier models are optional
-experiments, not required deployments. Verification itself remains mandatory.
+Core model learning compares one local and one API model on one existing task
+with one bounded provider fallback, including structured-output reliability.
+Do not add a model × prompt × provider matrix. Additional tiers and independent
+verifier models are optional experiments, not required deployments.
+Verification itself remains mandatory.
 Existing promoted configurations are unchanged by this document revision.
 
 Query rewriting and HyDE are optional, separate labs justified by observed
@@ -62,10 +68,17 @@ contextual panel. Teach distinct concepts without requiring a separate model
 call or graph node for each. Planning is required learning, with activation
 policy evaluated against direct QA.
 
-Cloud deployment is an optional capstone after local completion, requiring a
-separate hosting/access/privacy/budget plan. Local Docker does not demonstrate
-cloud deployment experience. This revision changes documentation only and does
-not advance Lesson 5.3's pending developer checkpoint.
+GCP/cloud deployment and AI CI/CD/GTM are outside the course. Keep runnable
+tests and local regression evaluation; local Docker does not demonstrate cloud
+deployment experience. Lessons 0–5, including 5.3, are complete; 6.1 is next.
+This documentation revision does not advance that cursor or implement lessons.
+
+After the seven remaining core lessons, requested Lesson 12.1 is one isolated
+LoRA experiment on short editorial-comment style. It adds no application route,
+queue job type, training service, model tier, or UI. Model/runtime selection,
+data rights, execution location, and resource budget belong to that lesson's
+approved plan. An adapter cannot change promoted application behavior without
+a separate integration proposal, evaluation, and explicit promotion.
 
 ## Core capabilities
 
@@ -88,7 +101,7 @@ StoryGuard is NOT:
 - a generic chatbot;
 - a Grammarly replacement;
 - a multi-agent showcase;
-- a fine-tuning project.
+- a model-training product; the isolated post-core learning experiment is separate.
 
 The product principle is:
 
@@ -3488,9 +3501,26 @@ local subset manifest
 
 Experiments must use pinned revisions and stable manifests so remote dataset changes cannot silently alter scores.
 
-## No fine-tuning
+## Isolated post-core fine-tuning experiment
 
-These datasets are for development, retrieval, evaluation, controlled mutation, and demos. They are NOT introduced for fine-tuning StoryGuard models in v1.
+Existing manuscript/retrieval datasets remain for development, evaluation,
+controlled mutations, and demos. Do not silently repurpose them as training data.
+Lesson 12.1 uses one small, permitted, versioned editorial-comment dataset with
+training/development/held-out splits; related examples stay in the same split.
+Keep held-out data out of training, few-shot examples, and prompt selection.
+
+Compare the same base model with basic prompting, few-shot prompting, and a
+LoRA adapter on the same held-out inputs under comparable decoding conditions.
+Measure style, helpfulness, meaning preservation, unsupported additions,
+inference latency, and training/inference resources and cost. Automatic judges,
+if used, require calibration against developer review rather than being treated
+as ground truth. Record base-model revision, adapter, data, prompts, and configs.
+
+Reuse existing experiment conventions and reports with a minimal training/eval
+script or notebook and a runnable adapter-loading example. There is no new
+training API, service, or frontend. The prediction/approval/evaluation/discussion
+and explicit promotion gates still apply. A negative result can complete the
+lesson; application integration is not required and is not automatic.
 
 # 62. Evaluation Dataset Families
 
@@ -3859,10 +3889,10 @@ retrieval comparisons rather than repeating lessons or rebuilding the runner.
 | Area | Core comparison |
 | --- | --- |
 | Retrieval | Existing BM25, vector, hybrid, and hybrid + reranker results on matching cases |
-| Model gateway | One local versus one API model; one bounded provider fallback |
-| Planning/tools | Direct QA versus bounded planning on multi-hop cases, including cost and failures |
+| Model gateway | One local versus one API model on one existing task; structured-output reliability and one bounded provider fallback |
+| Planning/tools | Direct QA versus bounded planning; wrong tools, unnecessary planning, missing evidence, invalid arguments, budget exhaustion, cost and failures |
 | Grounding | Citation validity/support, answer quality, hallucination and abstention; controlled verifier ablation where useful |
-| Continuity | Character-attribute contradictions and non-conflicts; precision, recall, F1, false positives |
+| Continuity | One character-attribute family; contradictions, legitimate changes and ambiguity; precision, recall, F1, false positives |
 
 Fixed evaluation data must remain separate from prompt tuning. Record dataset
 versions, sample sizes, configuration/prompt/model versions, latency, cost, and
@@ -3895,31 +3925,38 @@ planner
 verification
 ```
 
-CI should run a small, cost-controlled eval smoke set.
+Reuse the QA baseline from 7.1 and planning comparisons from 7.2 in 8.1.
+Detect systematic regressions using fixed baseline comparisons and failure
+rates by question category, with existing traces and reviewed feedback. Final
+answer quality does not replace evaluation of tool and planning decisions.
+No new monitoring dashboard is required.
 
-Full eval suite may run manually/on demand.
-
-Do not run expensive full OpenAI evals on every trivial frontend PR.
+Run a small, cost-controlled real-model evaluation locally for AI changes;
+full experiments run explicitly under the existing experiment gate. Mocked
+checks verify contracts and failure handling, not model quality.
 
 ---
 
-# 78. AI Eval CI Policy
+# 78. Local Test and Evaluation Policy
 
-Suggested layers:
+AI CI/CD infrastructure and launch/rollout automation are outside this course.
+Keep existing ordinary test automation; no new pipeline is required. Use the
+existing local commands and experiment runner for appropriate checks:
 
-## Always in CI
+## Deterministic checks
 
 ```text
 unit tests
 integration tests
 structured-output tests
 security deterministic tests
-small local-model or mocked eval smoke tests
+mocked provider contract/failure checks
 ```
 
-## AI-sensitive PRs
+## AI behavior changes
 
-Run small representative evaluation dataset.
+Run a small representative real-model evaluation and compare with the fixed
+baseline. Report case counts, category failures, latency, cost, and limitations.
 
 ## Full experiment
 
@@ -4471,25 +4508,28 @@ INSUFFICIENT_EVIDENCE
 
 `COURSE.md` is the single source for lesson order and the mapping from the old
 syllabus. `COURSE_PROGRESS.md` determines what to resume. Preserve completed
-Lessons 0–5; finish 5.3's pending checkpoint and learning discussion first.
+Lessons 0–5, including 5.3; the current lesson is 6.1.
 
 The remaining core sequence is:
 
 1. 6.1 Model gateway and trade-offs.
 2. 7.1 Grounded Story QA.
 3. 7.2 Bounded planning and tools.
-4. 8.1 QA evaluation and diagnosis.
-5. 9.1 Focused continuity detector.
-6. 9.2 Continuity evaluation and feedback.
-7. 10.1 Security and failure recovery.
-8. 10.2 Version lifecycle.
-9. 11.1 Portfolio finish and interview rehearsal.
+4. 8.1 QA and agent evaluation.
+5. 9.1 Focused continuity and feedback (includes former 9.2).
+6. 10.1 Security and failure recovery (includes former 10.2 version lifecycle).
+7. 11.1 Portfolio finish and interview rehearsal.
+
+After core completion, advance to requested 12.1 Small LoRA style experiment.
+Do not start training before that lesson's discussion and implementation plan
+approval. This experiment does not block local application completion; the
+requested course finishes after its implementation and learning checkpoint.
 
 Integrate user-visible features, security, and grounding in their own lessons.
 Phases 10–11 verify and harden them. Each lesson retains dialogue, explicit
 implementation approval, tests/evals/traces, a developer checkpoint, discussion,
-and a learning artifact before progress advances. Optional labs are not selected
-automatically and do not block graduation.
+and a learning artifact before progress advances. Unrequested optional labs
+are not selected automatically and do not block graduation.
 
 ---
 
@@ -4515,6 +4555,7 @@ It is done when the implementation demonstrates the following.
 - complex questions can be decomposed using bounded structured planning.
 - direct QA and planned QA are compared on multi-hop cases.
 - tool selection reuses manuscript retrieval and existing story memory.
+- manuscript-backed answers do not require a completed structured-memory build.
 - fallback retrieval is bounded.
 - agent budgets exist.
 - abstention exists.
@@ -4541,6 +4582,7 @@ It is done when the implementation demonstrates the following.
 ## Continuity
 
 - character-attribute conflict candidates are verified against manuscript passages.
+- the first usable slice covers one attribute family and includes feedback and evaluation.
 - both sides have evidence; ambiguous cases are not confirmed errors.
 - user can reject false positives.
 - continuity precision/recall/F1 can be measured.
@@ -4560,6 +4602,7 @@ It is done when the implementation demonstrates the following.
 - experiments are repeatable.
 - baseline comparison exists.
 - regressions can be detected.
+- tool/planning failures and category-level regressions are diagnosed with existing local evaluation and traces.
 - security evals exist.
 
 ## Reliability
@@ -4586,7 +4629,7 @@ It is done when the implementation demonstrates the following.
 - The demo shows a supported answer, abstention, continuity finding, and experiment comparison.
 - The developer explains the request flow, one failed experiment, one reliability failure, and the purpose of each component.
 - Every core lesson has both implementation and learning complete; passing tests alone is insufficient.
-- Optional labs, broader continuity, and cloud deployment do not block local core completion.
+- Requested post-core 12.1 and unrequested optional labs do not block local core completion; cloud deployment and AI CI/CD/GTM are outside the course.
 
 ---
 
@@ -4609,10 +4652,10 @@ The implementation agent MUST follow these constraints.
 13. Do not make retries unbounded.
 14. Do not make agent loops unbounded.
 15. Do not silently auto-merge uncertain entities.
-16. Do not introduce fine-tuning.
+16. Limit fine-tuning to the isolated requested Lesson 12.1 experiment; do not integrate its adapter into the application without a separate approved proposal and promotion.
 17. Do not introduce Temporal.
 18. Do not introduce a multi-agent swarm.
-19. Do not introduce Kubernetes/cloud deployment in v1 unless separately requested.
+19. Do not introduce Kubernetes/cloud deployment or AI CI/CD/GTM infrastructure in this course.
 20. Preserve the locked defaults in Section 3 as the baseline. If an implementation/runtime incompatibility prevents a selected model or parameter from running, surface the incompatibility explicitly instead of silently substituting another model/parameter.
 
 ---
@@ -4713,7 +4756,16 @@ How idempotency protected retryable background workflows.
 How manuscript versioning and atomic re-index publication worked.
 ```
 
-These explanations are core learning outcomes. Claims about optional techniques require actual experiments; explain the deferral rather than inventing results. Cloud deployment remains a skills gap until the optional capstone is completed.
+These explanations are core learning outcomes. In 11.1, also rehearse the Reedsy
+two-agent design and style/helpfulness evaluation questions without adding
+product agents or editor profiles. Claims about optional techniques require
+actual experiments. Cloud deployment remains outside the course and is not
+demonstrated by local Docker.
+
+After 12.1, explain when few-shot prompting was sufficient, what LoRA changed,
+how train/test leakage was prevented, whether style gains preserved meaning and
+helpfulness, and whether measured gains justified training resources. Do not
+claim the adapter improved results or was promoted without actual evidence.
 
 ---
 

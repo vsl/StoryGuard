@@ -1,8 +1,10 @@
 # Frontend / Backend API Gap Matrix
 
 Implementation snapshot: 2026-09-07, including Lesson 5.3 structured story memory
-and its post-implementation review. Scope classification updated 2026-09-07 for
-the approved focused course; no endpoints or UI behavior changed in that revision.
+and its post-implementation review. Scope classification updated 2026-09-11 for
+the approved seven-lesson core and post-core LoRA experiment; this documentation
+revision changes no endpoints or UI behavior. Historical verification below is
+not a new test run. Lesson 5.3 is complete and the current cursor is 6.1.
 
 The frontend is wired to the contracts in the backend and UI specifications.
 This document records what the repository actually publishes today. “Missing”
@@ -330,21 +332,26 @@ a placeholder or proposed endpoint does not require a new subsystem.
 | Area | Existing gap / proposed contract | Course disposition |
 | --- | --- | --- |
 | Dashboard | Aggregate summary and recent activity endpoints are absent. | Deferred rich dashboard; keep existing supported summaries and navigation. |
-| Delete old version | No endpoint specified; delete control is disabled. | Deferred advanced version management; core 10.2 verifies replacement/failure correctness. |
+| Delete old version | No endpoint specified; delete control is disabled. | Deferred advanced version management; core 10.1 verifies replacement/failure correctness. |
 | Chapter issue badges | Continuity issue contracts are absent. Structured-memory evidence already supports exact source-range navigation; continuity links still need wiring. | Core 9.1 wires issue evidence; badges are polish only if useful. |
 | Character attributes | Separate structured facts are real; a dedicated attribute contract is absent. | Core 9.1 reuses facts and manuscript evidence; a second extraction/attribute API is not required. |
-| Chat streaming | `POST /api/projects/{project_id}/chat/stream` is absent. | Core 7.1: shared Ask/contextual-panel backend with SSE, grounding, scope, and abstention. |
+| Chat streaming | `POST /api/projects/{project_id}/chat/stream` is absent. | Core 7.1: shared Ask/contextual-panel backend with SSE, grounding, scope, and abstention; manuscript-backed QA does not require completed structured memory. |
 | Chat history | Thread list/detail endpoints are absent. | Core QA conversation persistence; reuse the shared backend, not separate panel history infrastructure. |
-| Start continuity | `POST /api/projects/{project_id}/analysis/continuity` is absent. | Core 9.1: character-attribute conflicts only. |
+| Start continuity | `POST /api/projects/{project_id}/analysis/continuity` is absent. | Core 9.1: one character-attribute family first, using existing facts and both manuscript passages. |
 | Issues | Issue list/detail endpoints are absent. | Core 9.1: possible issues with two evidence passages. Other issue categories are deferred. |
-| Issue feedback | `POST /api/projects/{project_id}/issues/{issue_id}/feedback` is absent. | Core 9.2: writer verdict, reason, and optional note. |
+| Issue feedback | `POST /api/projects/{project_id}/issues/{issue_id}/feedback` is absent. | Core 9.1: writer verdict, reason, and optional note, in the first usable issue-review slice. |
 | Check new text | `POST /api/projects/{project_id}/check-text` is absent. | Deferred; not a core completion blocker. |
-| Analysis | Continuity analysis list/detail endpoints are absent. | Core 9.1–9.2: scoped run status/results and version-aware history; no elaborate activity dashboard. |
+| Analysis | Continuity analysis list/detail endpoints are absent. | Core 9.1: scoped run status/results and version-aware history; no elaborate activity dashboard. |
 | Evidence lookup | No standalone endpoint specified. | Core evidence arrives embedded in facts/events/issues/chat citations; reuse that contract and manuscript navigation. |
 | Product-help chat | No core backend workflow is implemented. | Deferred; do not add help routing or another retrieval corpus to finish QA. |
 
-Planning/tool selection in 7.2 and QA evaluation in 8.1 extend the same QA and
-Experiment Lab paths. Rewriting/HyDE are optional labs, not missing core APIs.
+Planning/tool selection in 7.2 and QA/agent evaluation in 8.1 extend the same QA
+and Experiment Lab paths, including decision failures and category regressions.
+No separate agent console or monitoring dashboard is required. Rewriting/HyDE
+are optional labs, not missing core APIs. Post-core 12.1 LoRA training/evaluation
+is an isolated script or notebook using existing experiment conventions; there
+is no training API, editor-profile UI, or adapter integration requirement.
+Cloud deployment and AI CI/CD/GTM are outside the course.
 Preserve current model choices and historical verification results below.
 
 ## Developer experiment boundaries

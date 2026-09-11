@@ -68,19 +68,27 @@ Before implementation, read as relevant:
 
 Do not silently change locked architecture.
 
-`COURSE.md` defines the required core scope and optional labs. Broader deferred
-designs in the specifications are references, not graduation requirements.
+`COURSE.md` defines the core, requested post-core lesson, and optional labs.
+Broader deferred designs in the specifications are references, not graduation requirements.
 The core is grounded Story QA with bounded planning and character-attribute
 continuity review. Reuse completed retrieval, tracing, Experiment Lab, and story
 memory; freeze their expansion unless a defect blocks the core demo. Preserve
 promoted AI configurations and the experiment/promotion gate.
 
-After 5.3's checkpoint and learning discussion, follow the nine revised core
-lessons in `COURSE.md`. Do not resurrect old future lesson IDs or automatically
-start optional labs. Cloud deployment is an optional capstone after local
-completion, requiring a separate plan; it remains a skills gap until performed.
+Lessons 0–5, including 5.3, are complete; the current cursor is 6.1. Follow the
+seven remaining core lessons in `COURSE.md`, then the requested post-core 12.1
+LoRA style experiment. Former 9.2 is merged into 9.1; former 10.2 into 10.1.
+Do not resurrect old future lesson IDs or automatically start unrequested labs.
+GCP/cloud deployment and AI CI/CD/GTM are outside this course; keep local tests
+and regression evaluation. Local Docker is not evidence of cloud experience.
+The 12.1 experiment adds no product UI, API, service, or automatic model
+promotion. Choose its model/runtime/budget during its own approved lesson plan.
 Do not create a separate model call, node, service, or UI merely because a
 concept has its own specification section.
+Manuscript-backed QA must remain usable without complete structured memory;
+missing extracted facts do not establish absence. Keep citation validity and
+semantic support checks. Start continuity with one character-attribute family
+and preserve writer review and false-positive evaluation.
 
 For an integration lesson, also inspect:
 
@@ -129,9 +137,9 @@ Do NOT introduce by default:
 - Neo4j
 - Kafka
 - Kubernetes
-- fine-tuning
+- fine-tuning outside the requested isolated Lesson 12.1 experiment
 - multi-agent swarm
-- GCP at the current course stage
+- GCP/cloud deployment or AI CI/CD/GTM infrastructure
 
 ---
 

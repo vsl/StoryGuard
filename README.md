@@ -11,16 +11,19 @@ Revisit licensing suitability only if this intended use changes.
 
 The [focused course](COURSE.md) targets one complete portfolio flow: upload a
 manuscript, browse Story Bible, ask questions with real citations, and review
-possible character-attribute contradictions. Nine core lessons remain after
-Lesson 5.3's pending learning checkpoint; this curriculum revision does not
-complete that checkpoint or implement those features.
+possible character-attribute contradictions. Lessons 0–5, including 5.3, are
+complete. The 2026-09-11 curriculum leaves seven core lessons starting at 6.1,
+then requested Lesson 12.1: one small LoRA style experiment after the local app
+is complete. This documentation revision does not implement those features.
 
 Reuse the existing retrieval, tracing, Experiment Lab, story memory, and model
 gateway. Bounded planning, evaluations, grounding, and reliability remain core.
 Query rewriting and HyDE are optional experiments. Broader continuity,
 product-help chat, checking pasted text, and advanced version management are
-deferred. Cloud deployment is an optional later capstone and remains an interview
-skills gap until completed. The existing stack and promoted models are unchanged.
+deferred. GCP/cloud deployment and AI CI/CD/GTM are outside the course; local
+Docker does not demonstrate cloud experience. The LoRA lesson adds no product
+UI, API, or service and does not automatically promote an adapter. The existing
+stack and promoted models are unchanged.
 
 Supported story entities: characters/people, facilities/buildings, countries
 and settlements, natural/geographical locations, organizations, and vehicles.
