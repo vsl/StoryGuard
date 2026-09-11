@@ -2,6 +2,31 @@
 
 ## 1. Purpose
 
+### Focused core scope — approved 2026-09-07
+
+`COURSE.md` defines graduation scope and `COURSE_PROGRESS.md` the current
+checkpoint. The required flow is upload → Story Bible → grounded Ask with
+citations → character-attribute continuity review. Reuse the current shell,
+components, APIs, and locked stack; this scope revision does not change UI code.
+
+Keep existing manuscript, search, entities, facts, events, relationships, Timeline,
+version metadata, and Experiment Lab available. Freeze expansion of completed
+features and fix defects blocking the core demo. One QA backend serves the Ask
+workspace and contextual panel; do not build a second agent for the panel.
+
+Product-help chat, checking pasted new text, broader continuity categories,
+version comparison/restoration, advanced archival, and elaborate activity
+dashboards are deferred. Query rewriting and HyDE controls belong only to
+separately approved optional experiments. References to deferred features below
+are design notes, not mandatory screens, APIs, or graduation requirements.
+Deferred shell paths stay explicitly unavailable/disabled; their presence does
+not authorize implementing them during UI polish.
+
+Security, evidence navigation, and real UI/backend wiring ship with each feature.
+Final polish covers readability, accessibility, navigation, actual progress,
+empty/error/abstention states, and the core demo rather than a new visual system.
+The optional cloud capstone follows local completion under a separate plan.
+
 StoryGuard is an AI-powered narrative consistency copilot for fiction writers.
 
 The frontend must provide a clean desktop-first workspace where a writer can:
@@ -11,7 +36,7 @@ The frontend must provide a clean desktop-first workspace where a writer can:
 - inspect parsed chapters and source text;
 - browse the automatically generated Story Bible;
 - inspect characters, locations, facts, events, and relationships;
-- review possible continuity issues;
+- review possible character-attribute continuity issues with two source passages;
 - ask AI questions about the current story;
 - inspect evidence/citations behind AI answers;
 - view analysis status and history;
@@ -198,7 +223,7 @@ Top-level routes:
 /projects/:projectId/settings
 ```
 
-Advanced routes:
+Additional routes (the check-text route is deferred):
 
 ```text
 /projects/:projectId/check
@@ -466,6 +491,11 @@ Do not fake steps using timers.
 ---
 
 # 11. Page: Overview / Dashboard
+
+Core scope is a useful entry point with current project/version, supported
+counts, job state, and navigation. The richer health/activity sketches below
+are deferred; do not add aggregate endpoints solely to fill dashboard cards.
+Absent data must remain visibly unavailable rather than invented.
 
 Route:
 
@@ -840,6 +870,8 @@ Evidence
 
 # 19. Timeline
 
+Keep the existing events view. New temporal reasoning, filters, or chronology capabilities are deferred unless needed to fix a core demo defect.
+
 Route:
 
 ```text
@@ -910,18 +942,10 @@ Possible
 Needs review
 ```
 
-Types:
-
-```text
-Character attribute
-Timeline
-Relationship
-Character knowledge
-Entity state
-Location
-World rule
-Other
-```
+Core type: `Character attribute`. A type filter is unnecessary while only one
+type is supported. Timeline, relationship, character-knowledge, entity-state,
+location, world-rule, and catch-all issues are deferred. Do not advertise them
+as working or build their endpoints for core completion.
 
 ---
 
@@ -1110,6 +1134,11 @@ Open in manuscript
 
 # 27. AI Right-Side Panel
 
+Use the same scoped QA backend, response/citation contracts, and SSE flow as
+the Ask workspace. UI context is a hint validated by the server, not another
+agent or source of factual evidence. Unsupported character-knowledge questions
+must be clarified or abstained on; chapter context does not prove character knowledge.
+
 Available from:
 
 ```text
@@ -1187,7 +1216,9 @@ Do not force one omnibox to guess user intent until there is a product reason to
 
 ---
 
-# 30. Check New Text
+# 30. Check New Text — Deferred Reference
+
+Not required for core graduation; keep its existing shell explicitly unavailable.
 
 Advanced route:
 
@@ -1309,19 +1340,10 @@ v1
 Uploaded Aug 3
 ```
 
-Actions in v1:
-
-```text
-View metadata
-Delete old version
-```
-
-Optional later:
-
-```text
-Restore version
-Compare versions
-```
+Core action: view metadata. Preserve existing upload/cancel/status behavior.
+Deletion of old versions, restoration, comparison, and advanced archival are
+deferred. Keep unsupported actions disabled; current-version correctness and
+failed-rebuild behavior are required without implementing those actions.
 
 ---
 
@@ -1529,15 +1551,15 @@ Run and compare real StoryGuard AI configurations without relying only on CLI sc
 
 ## Configuration panel
 
-Display/select controlled server-known configurations for:
+Reuse the existing Lab. Display/select only implemented, server-known configurations for:
 
 ```text
 Dataset
 Baseline configuration
 Candidate configuration
 Retrieval strategy
-Query rewriting
-HyDE
+Query rewriting (optional lab only)
+HyDE (optional lab only)
 Embedding configuration
 Reranker
 Prompt bundle
@@ -1553,7 +1575,7 @@ Show real background states: Queued, Running, Scoring, Completed, Failed.
 
 ## Results
 
-Show baseline/candidate metrics including Retrieval Recall@10, Answer correctness, Citation support, Hallucination rate, p50/p95 latency, API cost, and Fallback rate when applicable.
+Show baseline/candidate metrics including Retrieval Recall@10, Answer correctness, Citation support, Hallucination rate, p50/p95 latency, API cost, and Fallback rate when applicable. Include character-attribute continuity precision/recall and false positives for that suite. Show dataset version, sample size, and limitations; do not imply diagnostic cases establish full-book accuracy.
 
 ## Failure browser
 
@@ -2237,27 +2259,24 @@ No secrets should use the `NEXT_PUBLIC_` prefix.
 
 ---
 
-# 60. Definition of Done — Frontend v1
+# 60. Definition of Done — Frontend Core
 
-Frontend v1 is complete when:
+The focused frontend is complete when:
 
-- project list works;
-- project creation works;
-- manuscript upload works;
-- background processing state is visible;
-- overview page works;
-- manuscript viewer works;
-- Story Bible displays Characters, Locations, and Facts;
-- Continuity page works;
-- Ask StoryGuard page works;
-- citations open evidence;
-- right-side AI panel exists;
-- analysis page works;
-- settings page works;
-- error/loading/empty states exist;
-- Docker startup works;
-- browser access works at `http://localhost:3000`;
-- critical Playwright flows pass.
+- project creation, manuscript upload/viewing, current-version metadata, and real job progress work locally;
+- existing Story Bible, Timeline, search, and version views remain usable;
+- the Ask workspace and contextual panel share one backend and display grounded answers, uncertainty/abstention, and citations opening real manuscript passages;
+- focused continuity shows possible character-attribute issues with two passages and working writer feedback;
+- analysis status and existing history are version-aware and never imply stale results apply to the current manuscript;
+- the existing Experiment Lab presents actual comparisons and inspectable failures; developer mode exposes planning/tools and execution metadata, never hidden chain-of-thought;
+- core navigation, readable manuscript text, keyboard access, and loading/error/empty states are polished;
+- unsupported/deferred capabilities remain explicitly unavailable/disabled rather than creating more required endpoints;
+- real browser checks cover upload, cited QA, issue review, and manuscript replacement without intercepting application API calls;
+- Docker startup and browser access at `http://localhost:3000` work;
+- the demo shows a successful answer, an abstention, a continuity finding, and an experiment comparison.
+
+Optional labs, checking new text, broad continuity, advanced version management,
+and elaborate dashboards are not graduation requirements.
 
 ---
 

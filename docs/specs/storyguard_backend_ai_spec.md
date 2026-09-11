@@ -2,7 +2,7 @@
 
 **Document purpose:** implementation specification for an AI coding agent.
 
-**Status:** architecture and initial tuning defaults are locked. Values explicitly marked as experimental may be changed only through measured experiments, with the baseline preserved for comparison.
+**Status:** the locked architecture and promoted AI configurations are preserved. The focused course scope below supersedes broader historical feature requirements. AI behavior changes still require measured baseline/candidate experiments and explicit developer promotion.
 
 **Project scope:** personal, non-commercial portfolio/learning project; no
 production deployment or planned sale. Non-commercial model/dataset licenses
@@ -33,6 +33,42 @@ The coding agent MUST NOT add unrelated infrastructure, frameworks, agents, data
 
 # 1. Product Goal
 
+## Focused portfolio scope — approved 2026-09-07
+
+`COURSE.md` defines the required core and lesson order; `COURSE_PROGRESS.md`
+defines the current checkpoint. Core delivery is upload → Story Bible → grounded
+Story QA with bounded planning/tools → character-attribute continuity review.
+Use the existing stack, retrieval, reranker, traces, Experiment Lab, gateway,
+and structured memory. Freeze expansion of completed capabilities; fix defects
+that block this flow. Do not require perfect full-book entity resolution.
+
+Core model learning compares one local and one API model with one bounded
+provider fallback. Additional tiers and independent verifier models are optional
+experiments, not required deployments. Verification itself remains mandatory.
+Existing promoted configurations are unchanged by this document revision.
+
+Query rewriting and HyDE are optional, separate labs justified by observed
+retrieval failures. Product-help chat, checking pasted new text, broad continuity,
+character-knowledge/state models, version comparison/restoration, incremental
+indexing, advanced archival, and elaborate activity dashboards are deferred.
+Existing facts, events, relationships, and Timeline stay available. Sections
+covering deferred work are reference designs: their internal MUST/required
+wording applies only if that optional work is separately approved, not to core
+completion. Safety and evidence invariants always apply.
+
+Security, citation validity/support verification, one repair, and abstention
+ship with the first QA slice. Use one QA backend for the Ask workspace and
+contextual panel. Teach distinct concepts without requiring a separate model
+call or graph node for each. Planning is required learning, with activation
+policy evaluated against direct QA.
+
+Cloud deployment is an optional capstone after local completion, requiring a
+separate hosting/access/privacy/budget plan. Local Docker does not demonstrate
+cloud deployment experience. This revision changes documentation only and does
+not advance Lesson 5.3's pending developer checkpoint.
+
+## Core capabilities
+
 StoryGuard is an **AI-powered narrative consistency copilot** for fiction writers.
 
 It accepts a manuscript and builds a structured representation of the story. It then helps the writer:
@@ -40,11 +76,10 @@ It accepts a manuscript and builds a structured representation of the story. It 
 1. browse a Story Bible;
 2. ask natural-language questions about the manuscript;
 3. receive answers grounded in evidence from the manuscript;
-4. detect possible continuity inconsistencies;
-5. check new text against existing story facts;
-6. inspect the evidence behind AI claims;
-7. provide feedback when StoryGuard is wrong;
-8. compare AI/retrieval experiments and system quality over time.
+4. detect possible character-attribute inconsistencies;
+5. inspect the evidence behind AI claims;
+6. provide feedback when StoryGuard is wrong;
+7. compare AI/retrieval experiments and system quality over time.
 
 StoryGuard is NOT:
 
@@ -120,6 +155,11 @@ For large local models, use a quantized runtime artifact that fits the available
 
 ## Decision Table — Default and Rationale
 
+The model menu below preserves earlier design references; it is not a required
+multi-tier rollout. Use repository configuration and recorded promotions for
+actual deployed choices. Numeric tuning limits remain unchanged. An optional
+feature's limit is a ceiling if enabled, not a requirement to implement it.
+
 | Area | Locked baseline | Why this is used |
 |---|---|---|
 | Local fast LLM | **Gemma 4 E4B IT** | Small/fast local model for routing, classification, query rewriting, and lightweight extraction. Provides a meaningful fast tier for model-routing experiments. |
@@ -142,8 +182,8 @@ For large local models, use a quantized runtime artifact that fits the available
 | Reranker input | **30 candidates** | Allows reranking to improve precision without excessive local compute. |
 | Final context K — simple | **6 unique evidence items** | Keeps grounded context focused. |
 | Final context K — complex | **up to 12 unique evidence items total** | Multi-hop questions need broader evidence, but still bounded after deduplication. |
-| Query rewriting | **Enabled for STORY_QA except trivial exact-fact questions** | Improves retrieval for natural, indirect questions while avoiding unnecessary LLM work for obvious fact lookups. |
-| HyDE | **Fallback only** | Useful for vague/semantic retrieval, but adds cost/latency and may introduce invented concepts; therefore not used by default. |
+| Query rewriting | **Optional lab; no core requirement** | Compare raw queries with rewrites when diagnosed retrieval failures justify the experiment. |
+| HyDE | **Optional lab; fallback only if promoted** | Evaluate separately for observed retrieval failures; hypothetical text is never evidence. |
 | HyDE max calls | **1 per user turn** | Prevents runaway retrieval augmentation. |
 | Retrieval sufficiency | **Coverage-based** | Evidence sufficiency is based on support for required subquestions, not an arbitrary raw reranker-score threshold. |
 | Planner max subquestions | **5** | Enough decomposition for multi-hop questions without exploding retrieval/cost. |
@@ -167,6 +207,11 @@ For large local models, use a quantized runtime artifact that fits the available
 | Interactive transport | **SSE** | Supports real-time workflow and answer streaming without WebSocket complexity. |
 
 ## Model Aliases and Initial Routing
+
+The following is the earlier multi-tier reference design, not a claim about
+current configuration or a core implementation checklist. Lesson 6.1 extends the
+existing gateway with one local/API comparison and one bounded fallback; it
+must not overwrite promoted extraction/resolution choices to match this sketch.
 
 Application code must use semantic aliases.
 
@@ -310,40 +355,20 @@ If still incomplete:
 partial grounded answer or abstention
 ```
 
-## Query Rewriting Baseline
+## Query Rewriting — Optional Lab
 
-Use rewriting for STORY_QA except obvious exact-fact lookups.
+Start core QA with raw queries. Compare raw retrieval against rewritten queries
+only after diagnosing misses. Rewrites are retrieval artifacts, never evidence.
+Any activation policy requires an experiment and explicit promotion.
 
-Example exact lookup:
+## HyDE — Optional Lab
 
-```text
-What color are Daniel's eyes?
-```
+Evaluate separately when ordinary retrieval cannot find sufficient evidence.
+If promoted, use only for appropriate semantic queries with insufficient
+coverage, with a maximum of one HyDE generation per interactive turn.
+HyDE output is NEVER evidence. Core graduation does not require this lab.
 
-may skip rewriting.
-
-Example semantic question:
-
-```text
-Why did Daniel stop trusting Laura?
-```
-
-uses rewriting.
-
-## HyDE Baseline
-
-HyDE is enabled only when:
-
-1. the query is semantic/analytical/multi-hop; AND
-2. normal rewritten retrieval does not provide sufficient evidence coverage.
-
-Maximum:
-
-```text
-1 HyDE generation per interactive user turn
-```
-
-HyDE output is NEVER evidence.
+---
 
 ## Chapter Detection Baseline
 
@@ -511,7 +536,7 @@ Latency and cost are NOT initial CI failure gates because local inference speed 
 
 They remain mandatory measured metrics.
 
-## Product Help Source
+## Product Help Source — Deferred Reference
 
 Trusted product help is stored in versioned repository Markdown files:
 
@@ -1155,9 +1180,9 @@ relationships
 - confidence
 ```
 
-## Character Knowledge
+## Character Knowledge — Deferred Reference
 
-Advanced but planned:
+Not a core schema or supported reasoning capability:
 
 ```text
 character_knowledge
@@ -1182,9 +1207,9 @@ and continuity checks such as:
 Daniel refers to information before learning it.
 ```
 
-## Entity State
+## Entity State — Deferred Reference
 
-Advanced but planned:
+Not a core schema or continuity capability:
 
 ```text
 entity_state_transitions
@@ -1976,92 +2001,34 @@ If local provider is unavailable:
 
 # 22. LangGraph Workflows
 
-Use LangGraph where the workflow is actually conditional/stateful.
+Use LangGraph where the workflow is actually conditional/stateful. Do not turn
+every Python function into a graph node or retrofit completed memory extraction
+solely to match an architecture diagram.
 
-Do not turn every Python function into a graph node.
+Core workflows are Story QA and focused continuity. Reuse existing application
+and worker boundaries; a separate graph per screen or lesson is unnecessary.
+Check-new-text and product-help workflows are deferred.
 
-Primary graphs:
+# 23. QA Routing and Scoped Tools
 
-```text
-StoryQAGraph
-ContinuityGraph
-CheckNewTextGraph
-StoryMemoryExtractionGraph (only AI portions as useful)
-```
+The Ask workspace and contextual panel share one QA backend. Start with grounded
+direct retrieval in Lesson 7.1; add bounded planning/tool selection in 7.2.
+Reject, clarify, or abstain on unsupported requests. Continuity runs through its
+explicit analysis action; core QA need not classify every possible product action.
 
----
+Combine intent, complexity, and tool-selection decisions where practical.
+Program-driving model outputs must use structured schemas. Do not create a
+mandatory LLM call for every decision or expose hidden chain-of-thought.
 
-# 23. Top-Level Chat Intent Routing
-
-A user question is not always a manuscript RAG question.
-
-Top-level router:
-
-```text
-User message
-     |
-     v
-Intent Router
-     |
-     +--> PRODUCT_HELP
-     |
-     +--> STORY_QA
-     |
-     +--> CONTINUITY_CHECK
-     |
-     +--> CHECK_NEW_TEXT
-     |
-     +--> OUT_OF_SCOPE / CLARIFY when necessary
-```
-
-The router output MUST be a structured Pydantic schema.
-
-Example conceptual schema:
-
-```text
-intent
-confidence
-requires_story_context
-requested_chapter_scope
-```
-
-Do not expose free-form hidden reasoning.
-
-## Tool scoping by route
-
-`PRODUCT_HELP` tools:
-
-```text
-read_product_help
-```
-
-`STORY_QA` tools:
-
-```text
-get_entity_facts
-get_events
-get_relationships
-get_character_knowledge
-search_manuscript
-retrieve_timeline
-```
-
-`CONTINUITY_CHECK` tools:
-
-```text
-extract_claims
-retrieve_related_facts
-retrieve_evidence
-verify_conflict
-```
-
-Tool permissions are route-specific.
-
-This is an explicit anti-prompt-injection boundary.
+QA tools may wrap existing facts, events, relationships, and manuscript search.
+Do not invent character-knowledge tools or new story-memory subsystems.
+Continuity reuses facts and manuscript evidence to propose and verify
+character-attribute conflicts. Allowlist tools by workflow and validate all
+arguments; project/version scope is injected and enforced by the server.
 
 ---
 
-# 24. Product Help Route
+# 24. Product Help Route — Deferred Reference
 
 Product-help answers questions such as:
 
@@ -2098,73 +2065,27 @@ Product-help answers must not invent unsupported product capabilities.
 
 # 25. Story QA Workflow
 
-High-level graph:
+The first usable slice (Lesson 7.1) is grounded direct QA:
 
 ```text
-User question
-      |
-      v
-Intent Router
-      |
-      v
-STORY_QA
-      |
-      v
-Question Complexity Classifier
-      |
-   +--+-------------------+
-   |                      |
-   v                      v
-SIMPLE               COMPLEX / MULTI_HOP
-   |                      |
-   |                      v
-   |                 Query Planner
-   |                      |
-   +----------+-----------+
-              |
-              v
-       Query Rewriting
-              |
-              v
-       Optional HyDE
-              |
-              v
-       Tool/Retrieval Routing
-              |
-      +-------+-------------------------------+
-      |               |                       |
-      v               v                       v
-Structured facts    Events/timeline       Manuscript retrieval
-PostgreSQL          PostgreSQL            Elasticsearch
-                                              |
-                                      BM25/vector/hybrid
-                                              |
-                                          Reranker
-                                              |
-                                      Evidence sufficiency
-                                       /             \
-                                    sufficient     insufficient
-                                       |              |
-                                       |        controlled fallback
-                                       |              |
-                                       +------+-------+
-                                              |
-                                              v
-                                      Evidence Aggregation
-                                              |
-                                              v
-                                          Synthesis
-                                              |
-                                              v
-                                          Verifier
-                                              |
-                                      claim/evidence support
-                                       /             \
-                                    supported      unsupported
-                                       |              |
-                                       v         repair once / abstain
-                                     Answer
+Question + validated UI context
+→ server-enforced project/version scope
+→ existing manuscript retrieval and reranking
+→ evidence sufficiency
+→ synthesis with server-issued evidence IDs
+→ citation validity + claim-support verification
+→ answer, or one repair and re-verification, then removal/abstention
+→ shared Ask/contextual-panel response with SSE and evidence navigation
 ```
+
+Lesson 7.2 adds structured bounded planning and selection between existing
+story-memory tools and manuscript search before synthesis. Compare against the
+direct baseline; trace selected tools, evidence coverage, and budget use.
+A controlled retrieval fallback stays inside the same scope and budget.
+Query rewriting and HyDE are optional experiments, not mandatory stages.
+
+SSE status reflects real execution. Unsupported content must not be streamed
+as a verified final answer before support checks complete.
 
 ---
 
@@ -2182,10 +2103,10 @@ Where does Laura live?
 ## Complex / multi-hop
 
 ```text
-Was Daniel justified in distrusting Laura by Chapter 10 based only on what he knew?
+Which events contributed to Daniel and Laura falling out?
 ```
 
-Complexity output should be structured.
+Complexity output should be structured and may share a decision with planning/tool selection; a separate classifier call is not required.
 
 Metrics:
 
@@ -2209,14 +2130,12 @@ Example:
 
 ```text
 Main:
-Was Daniel justified in distrusting Laura by Chapter 10?
+Which events contributed to Daniel and Laura falling out?
 
 Subquestions:
-1. What did Daniel know about Laura by Chapter 10?
-2. When did he learn those facts?
-3. What suspicious actions had Laura taken before Chapter 10?
-4. Which of those actions were known to Daniel?
-5. How did Daniel's behavior toward Laura change?
+1. Which passages describe conflict between Daniel and Laura?
+2. Which events do those passages connect to the conflict?
+3. Which later interactions show a change in their relationship?
 ```
 
 Constraints:
@@ -2236,9 +2155,11 @@ It is not hidden chain-of-thought.
 
 ---
 
-# 28. Query Rewriting / Expansion
+# 28. Query Rewriting / Expansion — Optional Lab
 
-Before retrieval, convert natural-language questions into retrieval-friendly queries.
+Run only when retrieval failures justify a separately approved experiment.
+
+In this lab, compare raw natural-language questions against retrieval-friendly rewrites.
 
 Example:
 
@@ -2259,7 +2180,7 @@ Rewrites are retrieval artifacts, NOT answers.
 
 Measure their effect.
 
-Required experiment:
+Experiment required if this optional lab is undertaken:
 
 ```text
 raw query
@@ -2269,7 +2190,9 @@ rewritten query
 
 ---
 
-# 29. HyDE
+# 29. HyDE — Optional Lab
+
+A separate failure-driven experiment, not a core graduation requirement.
 
 HyDE = Hypothetical Document Embeddings.
 
@@ -2299,7 +2222,7 @@ It is a retrieval query artifact only.
 
 HyDE is conditional, not mandatory for every query.
 
-Required experiment:
+Experiment required if this optional lab is undertaken:
 
 ```text
 rewrite only
@@ -2342,32 +2265,13 @@ Answers may use structured facts for fast narrowing, but final factual claims sh
 
 # 31. Retrieval Fallback Strategy
 
-Do not repeatedly search without bounds.
+A retrieval miss may trigger one controlled additional retrieval round within
+the same project/version and total budget, such as consulting manuscript search
+when structured facts are insufficient. Incomplete support after the budget
+produces a supported partial answer or abstention. Do not add a third round via
+a nested fallback or implicitly enable rewriting/HyDE to recover a miss.
 
-Example:
-
-```text
-structured retrieval
-    |
-sufficient?
- /        \
-yes        no
- |          |
- |      hybrid search
- |          |
- |      sufficient?
- |       /       \
- |     yes        no
- |      |      broaden/rewrite once
- |      |           |
- +------+-----------+
-        |
-     continue
-```
-
-Fallback is controlled by budgets.
-
-No infinite agent loop.
+Record coverage, fallback, and budget exhaustion in execution metadata.
 
 ---
 
@@ -2555,6 +2459,12 @@ Do not ask the generator to answer when evidence is clearly insufficient.
 
 ## 7. Temporal filters
 
+Character-knowledge reasoning is deferred. Core QA must not claim a chapter
+filter establishes what a character knew; unsupported knowledge/chronology
+requests require clarification or abstention. Preserve explicit chapter scope
+for ordinary manuscript retrieval. The following is a safety constraint, not a
+requirement to implement a character-knowledge engine.
+
 Questions such as:
 
 ```text
@@ -2665,42 +2575,24 @@ Measure separately.
 Continuity checking is a controlled workflow, not an autonomous agent.
 
 ```text
-Chapter / selected text
-      |
-      v
-Extract claims
-      |
-      v
-Classify claim types
-      |
-      v
-Retrieve relevant history
-      |
-      v
-Generate candidate conflicts
-      |
-      v
-Verify candidate conflicts
-      |
-      v
-Score / classify severity
-      |
-      v
-Persist issue + evidence
+Current project/version's existing character-attribute facts
+→ propose candidate conflicts
+→ retrieve both manuscript passages
+→ verify conflict and contextual ambiguity
+→ persist possible issue + both evidence references
+→ writer review and feedback
 ```
 
-Issue types:
+Core issue type:
 
 ```text
 CHARACTER_ATTRIBUTE
-TIMELINE
-RELATIONSHIP
-CHARACTER_KNOWLEDGE
-ENTITY_STATE
-LOCATION
-WORLD_RULE
-OTHER
 ```
+
+Use existing facts for candidate generation and verify both claims against real
+manuscript passages. Do not require another general-purpose claim extractor.
+Timeline, relationship, character-knowledge, entity-state, location, world-rule,
+and catch-all issue classes are deferred reference designs, not core work.
 
 The UI language must say:
 
@@ -2722,34 +2614,21 @@ The AI finds suspicious inconsistencies; the writer decides.
 
 ---
 
-# 41. Claim Routing
+# 41. Focused Conflict Retrieval
 
-Different claim types may use different retrieval paths.
+Core continuity compares candidate character-attribute facts and retrieves their
+underlying manuscript passages to verify a possible conflict. Both sides must
+have evidence, with project/version scope enforced server-side. Uncertain
+identity, changed attributes, lies, and other contextual ambiguity require
+review or omission rather than a confirmed-error label.
 
-Example:
-
-```text
-character attribute
--> structured facts + manuscript evidence
-
-timeline
--> events + chronological fields + manuscript evidence
-
-character knowledge
--> character_knowledge + event chronology + manuscript
-
-relationship
--> relationships + events + manuscript
-
-supported entity state (for example a vehicle or facility)
--> state transitions + manuscript
-```
-
-This routing must be traceable and testable.
+Do not build separate claim routers, temporal engines, or new memory tables for
+the deferred issue classes. Trace candidate selection and verification using
+the existing observability infrastructure.
 
 ---
 
-# 42. Check New Text Workflow
+# 42. Check New Text Workflow — Deferred Reference
 
 Input:
 
@@ -2781,52 +2660,16 @@ The pasted text itself is evidence for the new side of the comparison but not pa
 
 # 43. Model Routing Experiments
 
-Model routing is a core learning goal.
+Lesson 6.1 inspects and extends the gateway already used by extraction and
+resolution. Compare one local and one API model on fixed cases, recording
+quality, latency, cost, errors, and fallback rate. Exercise one bounded provider
+fallback and distinguish it from job retries. Preserve deployed aliases and
+promoted defaults until an explicit promotion decision.
 
-Required capabilities:
-
-```text
-task-based model routing
-local-first routing
-fallback to OpenAI
-fast vs reasoning model
-independent verifier model
-cost-aware policies
-latency-aware policies
-```
-
-Example experiment matrix:
-
-```text
-Extraction:
-local model vs OpenAI fast
-
-Query rewriting:
-local vs OpenAI fast
-
-Simple QA:
-fast vs reasoning
-
-Complex multi-hop:
-fast vs reasoning
-
-Verification:
-same-as-generator vs second-model verifier
-```
-
-Measure:
-
-```text
-quality
-latency
-cost
-fallback rate
-error rate
-```
-
-A more expensive model is not automatically "better".
-
-The project should identify which tasks actually benefit from stronger models.
+Additional fast/reasoning tiers, API providers, and same-model versus
+independent-model verification comparisons are optional experiments for a
+specific observed failure or trade-off. Verification is required; a second
+verifier model is not. A more expensive model is not automatically better.
 
 ---
 
@@ -3226,15 +3069,16 @@ must not be sent through batch/cache traces. Annotation/export failures must
 not alter processing, application or cancellation. Traces do not replace the
 database audit, and historical untraced batches cannot be reconstructed.
 
-Trace:
+Trace the stages that actually run. Combined decisions may share a span;
+rewriting/HyDE are traced only in separately approved optional experiments:
 
 ```text
 entire LangGraph request
 router
 complexity classifier
 planner
-query rewrite
-HyDE
+query rewrite (optional lab)
+HyDE (optional lab)
 each retrieval strategy call
 structured retrieval
 reranker
@@ -3620,17 +3464,10 @@ as relevant.
 
 ## Continuity dataset
 
-Build a controlled mutation layer over selected public-domain narratives instead of manually writing books. Mutation families:
-
-```text
-character_attribute
-timeline
-character_knowledge
-entity_state
-location
-relationship
-world_rule
-```
+Build a small controlled mutation layer over selected public-domain narratives.
+The core family is `character_attribute`; include genuine contradictions and
+negative controls with both original and mutated evidence. Other mutation
+families belong to deferred continuity capabilities.
 
 Store original evidence, mutation evidence, issue type, expected conflict/no-conflict label, and mutation generator/version. Include both positive contradictions and negative controls.
 
@@ -3657,7 +3494,7 @@ These datasets are for development, retrieval, evaluation, controlled mutation, 
 
 # 62. Evaluation Dataset Families
 
-Create separate datasets.
+Use fixed, versioned cases grouped by capability in the existing evaluation tooling; separate dataset infrastructure per category is unnecessary. Keep evaluation cases separate from prompt tuning and report sample sizes and limitations.
 
 ## A. Retrieval dataset
 
@@ -3679,7 +3516,7 @@ Examples with known answers/evidence.
 
 Questions requiring multiple facts/subquestions.
 
-## D. Temporal QA
+## D. Temporal QA — Deferred Reference
 
 Examples:
 
@@ -3707,13 +3544,12 @@ Known true contradictions and non-contradictions.
 Start from consistent text and programmatically/manually mutate:
 
 ```text
-green eyes -> blue eyes
-Paris visit exists -> "first visit to France"
-vehicle destroyed -> used later
-knowledge learned later -> referenced earlier
+green eyes -> blue eyes (candidate contradiction)
+green eyes -> green eyes (non-conflict control)
+blue contact lenses over green eyes (apparent contradiction / context control)
 ```
 
-This provides strong ground truth.
+Manually review mutation labels and their context before treating them as ground truth; attribute changes are not automatically contradictions.
 
 ## H. Entity resolution
 
@@ -4015,45 +3851,27 @@ rerun experiment
 
 ---
 
-# 76. Required Experiment Matrix
+# 76. Core Experiment Matrix
 
-At minimum implement enough tooling to compare:
+Reuse the existing Experiment Lab and versioned datasets. Preserve completed
+retrieval comparisons rather than repeating lessons or rebuilding the runner.
 
-## Retrieval
+| Area | Core comparison |
+| --- | --- |
+| Retrieval | Existing BM25, vector, hybrid, and hybrid + reranker results on matching cases |
+| Model gateway | One local versus one API model; one bounded provider fallback |
+| Planning/tools | Direct QA versus bounded planning on multi-hop cases, including cost and failures |
+| Grounding | Citation validity/support, answer quality, hallucination and abstention; controlled verifier ablation where useful |
+| Continuity | Character-attribute contradictions and non-conflicts; precision, recall, F1, false positives |
 
-```text
-BM25
-vector
-hybrid
-hybrid + reranker
-```
+Fixed evaluation data must remain separate from prompt tuning. Record dataset
+versions, sample sizes, configuration/prompt/model versions, latency, cost, and
+limitations. The developer interprets results and explicitly decides promotions.
+A no-verifier experiment never permits unsupported answers in the product.
 
-## Query preparation
-
-```text
-raw query
-query rewrite
-query rewrite + HyDE
-```
-
-## Model routing
-
-```text
-local model
-OpenAI model A
-OpenAI model B
-```
-
-by task category where applicable.
-
-## Verification
-
-```text
-no verifier baseline
-verifier enabled
-```
-
-This is an experiment, not permission to ship hallucination-prone behavior as final.
+Optional labs: raw query versus rewriting, rewriting versus HyDE augmentation,
+additional model tiers, and broader continuity. Run each only for a concrete
+observed failure or trade-off; they are not graduation requirements.
 
 ---
 
@@ -4214,6 +4032,11 @@ Create an explicit test proving that a query in Project A can never retrieve a c
 
 # 82. Hallucination Tests
 
+Core checks cover implemented QA/continuity paths. The HyDE-specific case below
+is required only if that optional lab is implemented; its evidence prohibition
+remains an invariant. Chapter-scope checks do not require a character-knowledge
+or temporal-reasoning engine.
+
 Curated cases:
 
 ```text
@@ -4257,13 +4080,9 @@ The system must fail safely.
 
 Test application routing separately from LiteLLM fallback.
 
-Examples:
-
-```text
-simple rewrite -> fast alias
-complex synthesis -> reasoning alias
-verification -> verifier alias
-```
+Core tests cover the configured local/API comparison paths, allowlisted aliases,
+and one bounded fallback. They do not require separate fast, reasoning, and
+verifier model tiers or a query-rewriting implementation.
 
 Then test:
 
@@ -4279,47 +4098,15 @@ Do not assert a concrete provider until configured.
 
 # 85. LangSmith Trace Requirements
 
-For a complex Story QA trace, a developer should be able to see something conceptually like:
+A Story QA trace should expose the actual scoped request, planning/tool decisions
+when used, retrieval/reranking, evidence coverage, synthesis, citation/support
+verification, any repair, and final answer/abstention status. Show budget usage,
+model aliases, versions, counts, latency, tokens, cost, and safe errors.
 
-```text
-story_qa
-|
-+-- intent_router
-|
-+-- complexity_classifier
-|
-+-- query_planner
-|
-+-- query_rewriter
-|
-+-- hyde (optional)
-|
-+-- structured_retrieval
-|
-+-- elastic_hybrid_retrieval
-|
-+-- reranker
-|
-+-- synthesis
-|
-+-- claim_extraction
-|
-+-- citation_verification
-|
-+-- answer_verification
-```
-
-Each step should expose safe:
-
-```text
-duration
-model alias
-token usage
-retrieval counts
-scores
-error status
-version metadata
-```
+Combined decisions may share a span. Do not fabricate classifier, rewriting, or
+HyDE spans to match an architecture sketch; optional stages appear only if they
+actually ran. Execution metadata and structured subquestions are visible;
+hidden chain-of-thought is never exposed. Preserve trace privacy/redaction.
 
 ---
 
@@ -4366,15 +4153,16 @@ failure analysis
 
 ## Experiment configuration
 
-The UI/API should expose controlled server-known configurations for:
+Reuse the existing Lab. The UI/API should expose only implemented, controlled
+server-known configurations for:
 
 ```text
 dataset/version
 baseline configuration
 candidate configuration
 retrieval strategy
-query rewriting
-HyDE
+query rewriting (optional lab only)
+HyDE (optional lab only)
 embedding configuration
 reranker configuration
 prompt bundle
@@ -4681,136 +4469,27 @@ INSUFFICIENT_EVIDENCE
 
 # 97. Implementation Order — No Time Estimates
 
-This is implementation sequencing, not schedule estimation.
+`COURSE.md` is the single source for lesson order and the mapping from the old
+syllabus. `COURSE_PROGRESS.md` determines what to resume. Preserve completed
+Lessons 0–5; finish 5.3's pending checkpoint and learning discussion first.
 
-## Stage 1 — Infrastructure skeleton
+The remaining core sequence is:
 
-- Docker Compose
-- FastAPI
-- PostgreSQL
-- Alembic
-- MinIO
-- RabbitMQ
-- Taskiq worker
-- Elasticsearch
-- LiteLLM
-- LangSmith config
-- health endpoints
+1. 6.1 Model gateway and trade-offs.
+2. 7.1 Grounded Story QA.
+3. 7.2 Bounded planning and tools.
+4. 8.1 QA evaluation and diagnosis.
+5. 9.1 Focused continuity detector.
+6. 9.2 Continuity evaluation and feedback.
+7. 10.1 Security and failure recovery.
+8. 10.2 Version lifecycle.
+9. 11.1 Portfolio finish and interview rehearsal.
 
-## Stage 2 — Project and manuscript persistence
-
-- projects
-- uploads
-- MinIO
-- manuscript versions
-- jobs
-- parser
-- chapters/scenes/chunks
-
-## Stage 2A — Hugging Face dataset bootstrap
-
-- Hugging Face dataset registry
-- pinned dataset revisions
-- small public-domain Gutenberg manuscript subset
-- NarrativeQA QA fixtures
-- retrieval benchmark fixtures
-- local subset manifests
-- license/provenance metadata
-- reproducible fixture-generation scripts
-
-## Stage 3 — Retrieval baseline
-
-- local embeddings
-- Elasticsearch mapping
-- BM25
-- vector
-- hybrid
-- retrieval eval dataset
-- Recall@K experiment
-
-## Stage 4 — Reranking
-
-- local cross-encoder
-- hybrid + reranker
-- retrieval comparison
-
-## Stage 5 — Story memory
-
-- entity extraction
-- entity resolution
-- facts
-- events
-- relationships
-- evidence provenance
-
-## Stage 6 — Story QA
-
-- LangGraph
-- intent routing
-- complexity
-- query rewriting
-- planner
-- conditional HyDE
-- retrieval routing/fallback
-- synthesis
-- citations
-- verifier
-- abstention
-- SSE
-
-## Stage 7 — Model routing
-
-- LiteLLM aliases
-- local/OpenAI provider deployments
-- routing/fallback experiments
-- cost/latency comparison
-
-## Stage 8 — Continuity checker
-
-- claim extraction
-- claim routing
-- candidate conflicts
-- verification
-- issue storage
-- user feedback
-
-## Stage 9 — Evaluation and observability hardening
-
-- LangSmith trace coverage
-- eval datasets
-- answer correctness
-- citation correctness
-- hallucination rate
-- latency
-- cost
-- regression comparisons
-
-## Stage 9A — AI Experiment Lab
-
-- experiment-run persistence
-- background experiment runner
-- LangSmith experiment integration
-- baseline/candidate comparison API
-- developer UI
-- failure inspection
-- metric/latency/cost comparison
-
-## Stage 10 — Security/reliability hardening
-
-- prompt injection suite
-- project isolation
-- version isolation
-- retries
-- idempotency
-- dead-letter/failure handling
-- worker failure tests
-
-## Stage 11 — Version/re-index lifecycle
-
-- atomic publish
-- full re-index
-- history
-- cleanup
+Integrate user-visible features, security, and grounding in their own lessons.
+Phases 10–11 verify and harden them. Each lesson retains dialogue, explicit
+implementation approval, tests/evals/traces, a developer checkpoint, discussion,
+and a learning artifact before progress advances. Optional labs are not selected
+automatically and do not block graduation.
 
 ---
 
@@ -4831,12 +4510,11 @@ It is done when the implementation demonstrates the following.
 
 ## Agentic workflow
 
-- top-level intent routing exists.
-- simple/complex routing exists.
-- complex questions can be decomposed.
-- query rewriting exists.
-- conditional HyDE exists.
-- tool routing exists.
+- one shared QA workflow serves the Ask workspace and contextual panel.
+- routing/clarification and complexity decisions may be combined.
+- complex questions can be decomposed using bounded structured planning.
+- direct QA and planned QA are compared on multi-hop cases.
+- tool selection reuses manuscript retrieval and existing story memory.
 - fallback retrieval is bounded.
 - agent budgets exist.
 - abstention exists.
@@ -4846,7 +4524,7 @@ It is done when the implementation demonstrates the following.
 - LiteLLM gateway exists.
 - local provider path exists.
 - OpenAI path exists.
-- two OpenAI models can be configured.
+- one local and one API model are compared; additional tiers are optional.
 - semantic aliases are used.
 - fallback is exercised in tests.
 - quality/cost/latency can be compared.
@@ -4862,8 +4540,8 @@ It is done when the implementation demonstrates the following.
 
 ## Continuity
 
-- at least several issue classes work.
-- evidence accompanies issues.
+- character-attribute conflict candidates are verified against manuscript passages.
+- both sides have evidence; ambiguous cases are not confirmed errors.
 - user can reject false positives.
 - continuity precision/recall/F1 can be measured.
 
@@ -4877,7 +4555,8 @@ It is done when the implementation demonstrates the following.
 
 ## Evals
 
-- curated datasets exist.
+- fixed cases cover factual, multi-hop, unanswerable, adversarial, contradiction, and non-contradiction scenarios.
+- evaluation is separate from prompt tuning; sample sizes and dataset limitations are reported.
 - experiments are repeatable.
 - baseline comparison exists.
 - regressions can be detected.
@@ -4898,6 +4577,16 @@ It is done when the implementation demonstrates the following.
 - project/version boundaries are enforced.
 - no arbitrary model selection.
 - no provider secrets in frontend.
+
+---
+
+## Portfolio acceptance
+
+- Real browser checks cover upload, cited QA, issue review, and version replacement without application API mocks.
+- The demo shows a supported answer, abstention, continuity finding, and experiment comparison.
+- The developer explains the request flow, one failed experiment, one reliability failure, and the purpose of each component.
+- Every core lesson has both implementation and learning complete; passing tests alone is insufficient.
+- Optional labs, broader continuity, and cloud deployment do not block local core completion.
 
 ---
 
@@ -5002,9 +4691,8 @@ The project should leave the developer able to explain in an AI Engineer intervi
 Why hybrid retrieval beat or did not beat vector-only retrieval.
 How retrieval recall was measured.
 When reranking justified its latency.
-How query rewriting changed retrieval quality.
-When HyDE helped and when it hurt.
-Why complex questions required decomposition.
+Why rewriting and HyDE were deferred, and what measured failure would justify trying them.
+When decomposition helped or failed compared with direct retrieval.
 How tool routing and fallback were bounded.
 Why LangGraph was used for AI workflow control.
 Why Taskiq/RabbitMQ was used for batch execution instead of LangGraph.
@@ -5025,7 +4713,7 @@ How idempotency protected retryable background workflows.
 How manuscript versioning and atomic re-index publication worked.
 ```
 
-This is a core requirement of the project, not optional documentation.
+These explanations are core learning outcomes. Claims about optional techniques require actual experiments; explain the deferral rather than inventing results. Cloud deployment remains a skills gap until the optional capstone is completed.
 
 ---
 

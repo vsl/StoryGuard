@@ -68,6 +68,20 @@ Before implementation, read as relevant:
 
 Do not silently change locked architecture.
 
+`COURSE.md` defines the required core scope and optional labs. Broader deferred
+designs in the specifications are references, not graduation requirements.
+The core is grounded Story QA with bounded planning and character-attribute
+continuity review. Reuse completed retrieval, tracing, Experiment Lab, and story
+memory; freeze their expansion unless a defect blocks the core demo. Preserve
+promoted AI configurations and the experiment/promotion gate.
+
+After 5.3's checkpoint and learning discussion, follow the nine revised core
+lessons in `COURSE.md`. Do not resurrect old future lesson IDs or automatically
+start optional labs. Cloud deployment is an optional capstone after local
+completion, requiring a separate plan; it remains a skills gap until performed.
+Do not create a separate model call, node, service, or UI merely because a
+concept has its own specification section.
+
 For an integration lesson, also inspect:
 
 - production frontend data sources and API client/query usage;
@@ -139,7 +153,9 @@ For an explicit integration lesson:
 6. Prove at least one real browser-to-backend/storage/worker flow without intercepting or mocking its application API requests.
 7. During the approved implementation, update `docs/frontend-api-gaps.md` to match the resulting reality.
 
-Phase 11 remains final end-to-end hardening of already integrated capabilities.
+Security, evidence validation, and UI integration belong in each feature's first
+usable slice. Phase 11 is portfolio polish, real end-to-end verification, and
+interview rehearsal over already integrated capabilities.
 
 ---
 

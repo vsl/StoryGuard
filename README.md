@@ -9,6 +9,19 @@ project, with no production deployment or planned sale. Non-commercial models
 and datasets are acceptable; retain attribution, provenance, and license terms.
 Revisit licensing suitability only if this intended use changes.
 
+The [focused course](COURSE.md) targets one complete portfolio flow: upload a
+manuscript, browse Story Bible, ask questions with real citations, and review
+possible character-attribute contradictions. Nine core lessons remain after
+Lesson 5.3's pending learning checkpoint; this curriculum revision does not
+complete that checkpoint or implement those features.
+
+Reuse the existing retrieval, tracing, Experiment Lab, story memory, and model
+gateway. Bounded planning, evaluations, grounding, and reliability remain core.
+Query rewriting and HyDE are optional experiments. Broader continuity,
+product-help chat, checking pasted text, and advanced version management are
+deferred. Cloud deployment is an optional later capstone and remains an interview
+skills gap until completed. The existing stack and promoted models are unchanged.
+
 Supported story entities: characters/people, facilities/buildings, countries
 and settlements, natural/geographical locations, organizations, and vehicles.
 General items/artifacts and a catch-all category are outside current scope.
@@ -45,7 +58,8 @@ docker compose up -d --build frontend worker
 ```
 
 Compose starts their PostgreSQL, MinIO, RabbitMQ, Elasticsearch, and backend
-dependencies. LiteLLM configuration belongs to its later course lesson.
+dependencies. LiteLLM is already used by extraction and resolution; Lesson 6.1
+extends that integration with a local/API comparison and bounded fallback.
 
 Then open:
 

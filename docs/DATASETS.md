@@ -113,8 +113,8 @@ Use for:
 - BM25/vector/hybrid/reranker comparison;
 - Recall@K;
 - MRR;
-- query rewriting;
-- HyDE experiments.
+- optional query rewriting experiments after diagnosed retrieval misses;
+- optional, separately evaluated HyDE experiments.
 
 Pin revision `076b8b186236941df371a8d9b14be4cb4c7498fb` and use the
 `corpus/train` and `questions/train` configurations. The local fixture contains
@@ -133,11 +133,19 @@ US public-domain status applies in every territory.
 
 ## Continuity
 
-Create controlled mutations from selected public-domain narratives.
+Core continuity uses character-attribute mutations from selected public-domain
+narratives. Other issue families are deferred; do not expand the dataset taxonomy
+to satisfy older broad-continuity examples.
 
 Include both:
 - actual contradictions;
 - negative controls / non-conflicts.
+
+Keep fixed evaluation cases separate from prompt tuning. Include apparent
+contradictions with contextual explanations as negative or ambiguous controls;
+review labels rather than assuming every changed value is a contradiction.
+Report sample sizes and dataset limitations alongside metrics. Reuse existing
+fixtures and evaluation tooling; optional labs do not block core completion.
 
 ## Reproducibility
 

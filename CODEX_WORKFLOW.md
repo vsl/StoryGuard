@@ -20,13 +20,14 @@ COURSE_PROGRESS.md
 
 and continues automatically.
 
-Current pack starts at:
+Always resume the position in `COURSE_PROGRESS.md`; do not infer it from the
+original course pack. The focused curriculum in `COURSE.md` preserves completed
+lessons and defines nine remaining core lessons after 5.3. Optional labs are
+chosen explicitly, never required to graduate or selected automatically.
 
-```text
-Lesson 1.1 — FastAPI + PostgreSQL
-```
-
-because lessons 0.1 and 0.2 are already marked complete.
+Build grounded QA, bounded planning/tools, and character-attribute continuity
+review using the existing stack. Integrate and secure each feature as it is
+built; final lessons harden the demo and rehearse interview explanations.
 
 ---
 

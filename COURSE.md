@@ -33,6 +33,32 @@ Do not manually specify the lesson unless you intentionally want to review/jump.
 
 Never skip the discussion/approval steps.
 
+## Core portfolio scope
+
+The core product flow is:
+
+```text
+Upload manuscript → browse Story Bible → ask questions with citations
+→ review possible character-attribute contradictions
+```
+
+Learn RAG, bounded planning/tool use, evaluation, observability, grounding,
+security, and reliability through this flow. Reuse the locked architecture and
+completed implementations. A learning concept does not require a separate
+service, graph node, model call, or product screen.
+
+This curriculum defines required scope; broader designs in the specifications
+are optional references where marked deferred. It does not change promoted AI
+configurations or authorize implementing future lessons. AI behavior changes
+still require prediction, baseline/candidate evaluation, developer interpretation,
+and explicit promotion.
+
+`COURSE_PROGRESS.md` remains the authoritative cursor. The 2026-09-07 revision
+preserves completed history and Lesson 5.3's pending developer checkpoint.
+Finish that checkpoint, discuss it, and write its learning note before advancing
+to 6.1. Do not reopen completed lessons or require perfect full-book extraction
+or entity resolution before delivering QA.
+
 ---
 
 ## Phase 0 — Foundation
@@ -61,7 +87,7 @@ Never skip the discussion/approval steps.
   - connect manuscript upload/version history, job progress, basic success/failure version promotion, and parsed chapter viewing using capabilities from Lessons 1.1–3.1;
   - expose only aggregates supported by completed capabilities; keep later Story Bible, continuity, Story QA, vector/hybrid/reranker, LangSmith, and other future behavior explicitly unavailable or disabled;
   - prove one browser-to-backend/storage/worker vertical slice without intercepting or mocking its application API requests;
-  - leave archival, old-index cleanup, concurrency hardening, and the full re-index lifecycle to Lesson 10.3; do not reopen completed lessons or implement other future capabilities.
+  - leave version lifecycle hardening to Lesson 10.2 in the revised curriculum; advanced archival and old-index cleanup are deferred. Do not reopen this completed lesson.
 - 3.2 Embeddings + vector retrieval
 - 3.3 Hybrid retrieval with RRF
 - 3.4 Cross-encoder reranking
@@ -86,46 +112,86 @@ resolution, Story Bible, and future continuity work. Scope is model-independent.
   - defer Qwen comparison; code passing alone does not complete the lesson.
 - 5.3 Facts / events / relationships
 
-## Phase 6 — Model Routing
+## Phase 6 — Model Gateway and Trade-offs
 
-- 6.1 LiteLLM gateway
-- 6.2 Local vs OpenAI experiment
-- 6.3 Failure / fallback routing
+- **6.1 Model gateway and trade-offs**
+  - inspect and extend the existing LiteLLM integration used by extraction and resolution; do not rebuild it;
+  - compare one local and one API model on the same fixed cases, measuring quality, latency, cost, and failures;
+  - exercise one bounded provider fallback; distinguish provider retries from job retries;
+  - preserve existing promoted configurations until an explicit experiment promotion.
 
 ## Phase 7 — Agentic Story QA
 
-- 7.1 Intent routing
-- 7.2 Retrieval tools + scope
-- 7.3 Complexity routing + query planner
-- 7.4 Query rewriting
-- 7.5 Conditional HyDE
-- 7.6 Retrieval fallback + agent budgets
+- **7.1 Grounded Story QA**
+  - deliver a real Ask flow over existing retrieval with server-enforced project/version scope and SSE;
+  - include evidence-backed synthesis, citation validity and support verification, one repair, then removal or abstention;
+  - use one shared QA backend for the Ask workspace and contextual panel; wire evidence navigation in this lesson;
+  - establish direct QA and a small fixed evaluation baseline before adding planning.
+- **7.2 Bounded planning and tools**
+  - add structured decomposition and selection between manuscript search and existing story-memory tools;
+  - combine routing decisions where practical; avoid a mandatory LLM call per concept;
+  - enforce tool, retrieval, context, and LLM budgets, including bounded retrieval fallback;
+  - compare direct retrieval against planning on multi-hop questions; trace selected tools, subquestions, cost, and failures without hidden chain-of-thought;
+  - planning is required learning; activation policy is decided from the experiment, not assumed to improve every query.
 
-## Phase 8 — Grounding / Hallucination Control
+## Phase 8 — QA Evaluation and Diagnosis
 
-- 8.1 Evidence-backed synthesis
-- 8.2 Verifier
-- 8.3 Abstention
-- 8.4 Hallucination evaluation
+- **8.1 QA evaluation and diagnosis**
+  - extend the existing Experiment Lab rather than building a second evaluation system;
+  - cover factual, multi-hop, unanswerable, and adversarial questions with evidence labels;
+  - measure answer quality, citation validity/support, hallucination, abstention, latency, and cost;
+  - inspect traces and failures, compare controlled configurations, and let the developer interpret results and decide promotions;
+  - keep fixed evaluation data separate from prompt tuning; report sample size and dataset limitations.
 
-## Phase 9 — Continuity Engine
+## Phase 9 — Focused Continuity
 
-- 9.1 Controlled mutation dataset
-- 9.2 Claim extraction/routing
-- 9.3 Conflict verification
-- 9.4 Continuity evaluation
+- **9.1 Focused continuity detector**
+  - use existing facts to propose conflicting character attributes; verify both claims against manuscript evidence;
+  - start with controlled contradictions and non-conflicts; do not build a general claim-routing taxonomy;
+  - persist and display possible issues with two supporting passages; ambiguity is not a confirmed error;
+  - reuse existing entity resolution and structured memory without expanding extraction scope.
+- **9.2 Continuity evaluation and feedback**
+  - connect writer verdicts and feedback to the real issue review flow;
+  - evaluate controlled mutations and negative controls, including ambiguous or merely apparent contradictions;
+  - measure precision, recall, F1, and false positives; discuss failures and use reviewed feedback for future evaluation cases.
 
 ## Phase 10 — Security / Reliability
 
-- 10.1 Prompt injection
-- 10.2 Idempotency / retries
-- 10.3 Manuscript version / re-index lifecycle
+- **10.1 Security and failure recovery**
+  - exercise manuscript prompt injection, invalid tool arguments, project/version isolation, and safe error handling;
+  - test dependency failures, duplicate jobs, idempotency, and bounded retries using existing protections;
+  - inspect a real failure trace and explain recovery and remaining limits.
+- **10.2 Version lifecycle**
+  - verify replacement uploads, stale-result fencing, and failed rebuilds preserving the current usable version;
+  - reuse full rebuilds and version-pinned evidence; do not add incremental indexing or advanced archival;
+  - prove the real browser-to-backend/storage/worker replacement flow.
 
-## Phase 11 — Integration
+## Phase 11 — Portfolio Finish
 
-- 11.1 End-to-end Story QA
-- 11.2 End-to-end Continuity
-- 11.3 Final AI experiment review
+- **11.1 Portfolio finish and interview rehearsal**
+  - polish the core desktop flows, citation navigation, progress, and empty/error/abstention states;
+  - verify real upload, cited QA, issue review, and manuscript replacement without application API mocks;
+  - demonstrate a successful answer, an abstention, a continuity finding, and an experiment comparison;
+  - consolidate measured results and rehearse the request flow, one failed experiment, one reliability failure, and the purpose of each retained component.
+
+## Original-topic mapping
+
+This maps the previous unfinished syllabus to the revised course. Completed
+lesson IDs and learning artifacts remain unchanged. Old future IDs below are
+historical references, not additional lessons to execute.
+
+| Previous topics | Revised destination |
+| --- | --- |
+| 6.1 gateway, 6.2 local/API experiment, 6.3 provider fallback | 6.1 Model gateway and trade-offs |
+| 7.1 intent routing, 7.2 scoped retrieval, 8.1 synthesis, 8.2 verifier, 8.3 abstention, 11.1 QA integration | 7.1 Grounded Story QA; tool selection extends in 7.2 |
+| 7.3 complexity/planning, 7.6 retrieval fallback/budgets | 7.2 Bounded planning and tools |
+| 7.4 query rewriting, 7.5 conditional HyDE | Separate optional labs |
+| 8.4 hallucination evaluation | 8.1 QA evaluation and diagnosis |
+| 9.1 mutations, 9.2 claim extraction/routing, 9.3 conflict verification | 9.1 Focused continuity detector, limited to character attributes |
+| 9.4 continuity evaluation, 11.2 continuity integration | 9.2 Continuity evaluation and feedback; initial issue UI in 9.1 |
+| 10.1 injection, 10.2 retries/idempotency | 10.1 Security and failure recovery |
+| 10.3 version/re-index lifecycle | 10.2 Version lifecycle; advanced archival/cleanup deferred |
+| 11.3 final experiment review, final QA/continuity hardening | 11.1 Portfolio finish and interview rehearsal |
 
 ---
 
@@ -133,17 +199,40 @@ resolution, Story Bible, and future continuity work. Scope is model-independent.
 
 Connect user-visible capabilities in their lesson or an immediate catch-up lesson instead of postponing all UI/backend wiring to Phase 11. A catch-up lesson may add thin APIs and missing orchestration over completed capabilities, but it must not pull future domain or AI capabilities forward.
 
-Phase 11 remains final end-to-end hardening of already integrated capabilities.
+Security, evidence validation, and UI integration belong in each feature's first
+usable slice. Phases 10–11 harden and verify them; they are not permission to
+postpone safeguards or real UI wiring.
 
 ---
 
-## Deliberately Not in Current Course
+## Optional labs and deferred product work
 
-- GCP deployment
-- go-to-market
-- fine-tuning
-- Kubernetes
-- Temporal
-- multi-agent swarm
+- **Query rewriting**: compare raw queries against rewrites only after diagnosing retrieval misses.
+- **HyDE**: a separate experiment when retrieval failures justify it; hypothetical text is never evidence.
+- **Additional model/provider comparisons**: only for a measured quality or performance question. Existing model options remain available.
+- **Cloud deployment capstone**: optional after local completion, with a separate plan for hosting, access control, privacy, and budget. Cloud deployment experience remains a gap until actually completed; local Docker is not evidence of it.
 
-Current focus: AI Engineering, AI workflows, agent-system design, RAG, evals, observability, security, reliability.
+Deferred product work: product-help chat, checking pasted new text, broad
+continuity (timeline, relationships, character knowledge, entity state,
+locations, world rules, and catch-all issues), version comparison/restoration,
+incremental indexing, advanced archival, and elaborate activity dashboards.
+Existing entities, facts, relationships, and Timeline remain available; freeze
+expansion and fix defects that block the core demo. Deferred UI paths must remain
+explicitly unavailable or disabled until separately approved; their presence in
+the shell does not create a core requirement.
+
+No core requirement for go-to-market, fine-tuning, Kubernetes, Temporal, or a
+multi-agent swarm. An optional lab is never selected automatically as the next
+lesson and never blocks core completion.
+
+## Core completion criteria
+
+- Supported QA answers open real manuscript evidence; insufficient evidence produces abstention.
+- The Ask workspace and contextual panel use one backend; planning demonstrates bounded multi-step retrieval with inspectable tool calls and execution metadata.
+- Character-attribute issues show two supporting passages and accept writer feedback; ambiguous cases are not presented as confirmed errors.
+- Fixed evaluation sets cover factual, multi-hop, unanswerable, adversarial, contradiction, and non-contradiction cases, separate from prompt tuning. Results include quality, latency, cost, and dataset limitations.
+- Real browser checks cover upload, cited QA, issue review, and version replacement without intercepting application API calls.
+- The developer can demonstrate a successful answer, abstention, continuity finding, and experiment comparison, and explain the request flow, one failed experiment, one reliability failure, and each retained component.
+- Every core lesson has both `implementation_done = true` and `learning_done = true`. Passing code checks alone is insufficient.
+
+Role reference: [Reedsy AI Engineer posting](https://wellfound.com/jobs/3365364-ai-engineer-remote-europe), reviewed 2026-09-07. The course targets applied AI product engineering; it does not claim to cover every requirement of that role.

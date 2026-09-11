@@ -1,7 +1,8 @@
 # Frontend / Backend API Gap Matrix
 
-Snapshot: 2026-09-07, including Lesson 5.3 structured story memory and its
-post-implementation review.
+Implementation snapshot: 2026-09-07, including Lesson 5.3 structured story memory
+and its post-implementation review. Scope classification updated 2026-09-07 for
+the approved focused course; no endpoints or UI behavior changed in that revision.
 
 The frontend is wired to the contracts in the backend and UI specifications.
 This document records what the repository actually publishes today. “Missing”
@@ -319,22 +320,32 @@ data to zero. A backend/config endpoint for supported manuscript languages is
 also absent, so the forms accept a BCP 47 code and default to the backend default
 `en`.
 
-## Missing product endpoints
+## Missing core work and deferred capabilities
 
-| Area | Required endpoint or contract | Blocked behavior |
+These are implementation gaps, not features delivered by the course revision.
+`COURSE.md` owns scope and lesson order. Keep deferred UI paths explicitly
+unavailable/disabled. Reuse existing structured facts and embedded evidence;
+a placeholder or proposed endpoint does not require a new subsystem.
+
+| Area | Existing gap / proposed contract | Course disposition |
 | --- | --- | --- |
-| Dashboard | Aggregate summary and recent activity contract | Complete counts, continuity health, and recent activity. |
-| Delete old version | No endpoint specified yet | The v1 delete control remains disabled. |
-| Chapter issue badges and evidence anchors | Later continuity/evidence contracts | Chapter text is real now; issue counts and exact evidence spans remain future work. |
-| Character attributes | Later attribute-extraction contract | Character names, aliases, mention evidence and separate structured facts are real; a dedicated attribute contract remains unavailable. |
-| Chat streaming | `POST /api/projects/{project_id}/chat/stream` | Full Ask workspace and contextual side panel. |
-| Chat history | Thread list/detail endpoints | Persisted conversation history. |
-| Start continuity | `POST /api/projects/{project_id}/analysis/continuity` | Run-analysis action. |
-| Issues | Issue list/detail endpoints | Filters, issue cards, and evidence comparison. |
-| Issue feedback | `POST /api/projects/{project_id}/issues/{issue_id}/feedback` | Valid/not-an-issue verdicts, reason, and note. |
-| Check new text | `POST /api/projects/{project_id}/check-text` | Passage consistency result. |
-| Analysis | Analysis list/detail endpoints | Latest run, metrics, version metadata, and history. |
-| Evidence lookup | No standalone endpoint specified | Evidence must arrive embedded with facts, issues, events, or chat citations. |
+| Dashboard | Aggregate summary and recent activity endpoints are absent. | Deferred rich dashboard; keep existing supported summaries and navigation. |
+| Delete old version | No endpoint specified; delete control is disabled. | Deferred advanced version management; core 10.2 verifies replacement/failure correctness. |
+| Chapter issue badges | Continuity issue contracts are absent. Structured-memory evidence already supports exact source-range navigation; continuity links still need wiring. | Core 9.1 wires issue evidence; badges are polish only if useful. |
+| Character attributes | Separate structured facts are real; a dedicated attribute contract is absent. | Core 9.1 reuses facts and manuscript evidence; a second extraction/attribute API is not required. |
+| Chat streaming | `POST /api/projects/{project_id}/chat/stream` is absent. | Core 7.1: shared Ask/contextual-panel backend with SSE, grounding, scope, and abstention. |
+| Chat history | Thread list/detail endpoints are absent. | Core QA conversation persistence; reuse the shared backend, not separate panel history infrastructure. |
+| Start continuity | `POST /api/projects/{project_id}/analysis/continuity` is absent. | Core 9.1: character-attribute conflicts only. |
+| Issues | Issue list/detail endpoints are absent. | Core 9.1: possible issues with two evidence passages. Other issue categories are deferred. |
+| Issue feedback | `POST /api/projects/{project_id}/issues/{issue_id}/feedback` is absent. | Core 9.2: writer verdict, reason, and optional note. |
+| Check new text | `POST /api/projects/{project_id}/check-text` is absent. | Deferred; not a core completion blocker. |
+| Analysis | Continuity analysis list/detail endpoints are absent. | Core 9.1–9.2: scoped run status/results and version-aware history; no elaborate activity dashboard. |
+| Evidence lookup | No standalone endpoint specified. | Core evidence arrives embedded in facts/events/issues/chat citations; reuse that contract and manuscript navigation. |
+| Product-help chat | No core backend workflow is implemented. | Deferred; do not add help routing or another retrieval corpus to finish QA. |
+
+Planning/tool selection in 7.2 and QA evaluation in 8.1 extend the same QA and
+Experiment Lab paths. Rewriting/HyDE are optional labs, not missing core APIs.
+Preserve current model choices and historical verification results below.
 
 ## Developer experiment boundaries
 
