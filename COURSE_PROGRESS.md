@@ -26,17 +26,18 @@ completed_lessons:
   - "4.2 AI Experiment Lab"
   - "5.1 Entity extraction"
   - "5.2 Entity resolution"
+  - "5.3 Facts / events / relationships"
 
 current_lesson:
-  id: "5.3"
-  title: "Facts / events / relationships"
-  status: "developer_checkpoint_pending"
+  id: "6.1"
+  title: "Model gateway and trade-offs"
+  status: "not_started"
 
 current_lesson_state:
-  concept_discussed: true
-  implementation_plan_approved: true
-  implementation_done: true
-  tests_done: true
+  concept_discussed: false
+  implementation_plan_approved: false
+  implementation_done: false
+  tests_done: false
   developer_checkpoint_done: false
   learning_done: false
 ```
