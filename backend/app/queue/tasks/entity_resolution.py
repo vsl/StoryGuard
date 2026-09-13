@@ -28,6 +28,7 @@ from app.queue.tasks.ingestion import _finish_stage, _start_stage
 
 logger = logging.getLogger(__name__)
 CANCEL_POLL_SECONDS = 1
+PROVIDER_RETRY_DELAY_SECONDS = 5
 
 
 class ResolutionStopped(Exception):
@@ -101,6 +102,7 @@ async def run_resolution_job(job_id: uuid.UUID) -> None:
     batch_trace_id = annotate_trace(metadata={"job_id": str(job_id), "component": "entity_resolution"})
     started = time.monotonic()
     attempt = None
+    retry_pending = False
     try:
         async with SessionLocal() as session, session.begin():
             job = await session.get(JobRun, job_id)
@@ -278,9 +280,9 @@ async def run_resolution_job(job_id: uuid.UUID) -> None:
                     committed_totals = trace_counts(candidates)
                 # Only committed decisions enter the trace's version totals.
                 summary["version_totals"] = committed_totals
-                # The saved attempt count bounds retries across batch boundaries.
+                # Provider failures retry in a later job delivery, never in this loop.
                 if error_code and needs_evaluation(candidate):
-                    pending_ids.append(candidate_id)
+                    retry_pending = True
 
         async with SessionLocal() as session, session.begin():
             await current_scope(session, project_id, version_id, lock=True)
@@ -314,6 +316,11 @@ async def run_resolution_job(job_id: uuid.UUID) -> None:
         summary["version_totals"] = committed_totals
         if requeue:
             try:
+                if retry_pending:
+                    summary["retry_delay_seconds"] = PROVIDER_RETRY_DELAY_SECONDS
+                    # ponytail: one short sleep holds a worker slot; add a durable
+                    # scheduler only if retry volume makes that operationally costly.
+                    await asyncio.sleep(PROVIDER_RETRY_DELAY_SECONDS)
                 await resolve_manuscript_entities.kiq(str(job_id))
                 summary["continuation_queued"] = True
             except Exception:

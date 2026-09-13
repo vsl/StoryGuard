@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import time
@@ -10,7 +11,7 @@ import httpx
 from langsmith import traceable
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from app.ai.tracing import trace_content_mode
+from app.ai.tracing import annotate_trace, trace_content_mode
 
 
 MODEL_ALIAS = "storyguard-fast"
@@ -168,7 +169,10 @@ async def _completion(
     schema_name: str = "extracted_entities",
     max_tokens: int | None = None,
     request_timeout: float | None = None,
+    diagnostics: dict | None = None,
 ) -> dict:
+    started = time.perf_counter()
+    call: dict[str, Any] = {"model_alias": model_alias}
     owns_client = client is None
     if client is None:
         client = httpx.AsyncClient(
@@ -195,13 +199,46 @@ async def _completion(
                 },
             },
         )
+        call["http_status"] = response.status_code
+        deployment_id = response.headers.get("x-litellm-model-id", "")
+        call["deployment_id"] = deployment_id if re.fullmatch(r"[a-zA-Z0-9_-]{1,100}", deployment_id) else None
+        version = response.headers.get("x-litellm-version", "")
+        call["gateway_version"] = version if re.fullmatch(r"[a-zA-Z0-9_.-]{1,40}", version) else None
+        # Copy only numeric, documented headers; provider headers may hold secrets.
+        for header, key, cast in (
+            ("x-litellm-attempted-retries", "served_deployment_retries", int),
+            ("x-litellm-attempted-fallbacks", "fallbacks", int),
+            ("x-litellm-response-cost", "gateway_estimated_cost_usd", float),
+        ):
+            try:
+                value = cast(response.headers.get(header, ""))
+                call[key] = value if math.isfinite(value) and value >= 0 else None
+            except (ValueError, TypeError, OverflowError):
+                call[key] = None
         response.raise_for_status()
-        return response.json()
+        try:
+            payload = response.json()
+        except ValueError:
+            raise EntityExtractionError("Model gateway returned invalid JSON") from None
+        if isinstance(payload, dict):
+            call["response_model"] = payload.get("model")
+            call["resolved_model"] = payload.get("model") if payload.get("model") != model_alias else None
+            usage = payload.get("usage")
+            if isinstance(usage, dict):
+                call["usage"] = {
+                    key: value for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+                    if isinstance(value := usage.get(key), int) and not isinstance(value, bool) and value >= 0
+                }
+        return payload
     except httpx.TimeoutException as exc:
         raise TimeoutError("Entity extraction timed out") from exc
     except httpx.TransportError as exc:
         raise ConnectionError("Entity extraction model is unavailable") from exc
     finally:
+        call["latency_ms"] = (time.perf_counter() - started) * 1000
+        if diagnostics is not None:
+            diagnostics.setdefault("gateway_calls", []).append(call)
+            annotate_trace(metadata={"gateway_calls": diagnostics["gateway_calls"]})
         if owns_client:
             await client.aclose()
 

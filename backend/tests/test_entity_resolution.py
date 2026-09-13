@@ -57,7 +57,7 @@ class ResolutionTest(unittest.IsolatedAsyncioTestCase):
     def test_automatic_application_is_enabled_by_default(self):
         config = resolution_config()
         self.assertIs(config["auto_apply"], True)
-        self.assertEqual((config["provider_model"], config["max_output_tokens"]), ("gemma4:e4b", 1536))
+        self.assertEqual((config["provider_model"], config["max_output_tokens"]), ("gemini-3.5-flash-lite", 1536))
 
     def test_saved_attempt_count_limits_automatic_retries(self):
         candidate = ResolutionCandidate(error_code="MODEL_TIMEOUT", model_metadata={})
@@ -192,6 +192,9 @@ class ResolutionDatabaseTest(unittest.IsolatedAsyncioTestCase):
         dispatch = patch("app.queue.tasks.entity_resolution.resolve_manuscript_entities.kiq", new=AsyncMock())
         self.dispatch = dispatch.start()
         self.addCleanup(dispatch.stop)
+        retry_delay = patch("app.queue.tasks.entity_resolution.PROVIDER_RETRY_DELAY_SECONDS", 0)
+        retry_delay.start()
+        self.addCleanup(retry_delay.stop)
         self.project_id, self.other_id = uuid.uuid4(), uuid.uuid4()
         self.version_id, self.old_version_id = uuid.uuid4(), uuid.uuid4()
         self.chapter_id, self.chunk_id = uuid.uuid4(), uuid.uuid4()
@@ -434,6 +437,9 @@ class ResolutionDatabaseTest(unittest.IsolatedAsyncioTestCase):
         job_id = await self.start_job()
         with patch("app.queue.tasks.entity_resolution.resolve_pair", new=AsyncMock(side_effect=ConnectionError("provider-secret"))) as model:
             await run_resolution_job(job_id)
+            async with SessionLocal() as session:
+                self.assertEqual((await session.get(JobRun, job_id)).status, "queued")
+            await run_resolution_job(job_id)
         self.assertEqual(model.await_count, 6)  # Three pairs, one deferred retry each.
         response = await self.client.get(f"/api/projects/{self.project_id}/entity-resolution/candidates")
         self.assertNotIn("provider-secret", response.text)
@@ -635,12 +641,18 @@ class ResolutionDatabaseTest(unittest.IsolatedAsyncioTestCase):
         trace_client = FakeTraceClient()
         with tracing_context(enabled=True, client=trace_client), patch("app.queue.tasks.entity_resolution.resolve_pair", new=AsyncMock(side_effect=fail_first)):
             await run_resolution_job(job_id)
-        traced = trace_client.updated[-1]["outputs"]
-        self.assertEqual((traced["gemma_attempts"], traced["retry_attempts"], traced["failed_attempts"]), (4, 1, 1))
-        self.assertEqual(traced["version_totals"]["error_count"], 0)
+            async with SessionLocal() as session:
+                self.assertEqual((await session.get(JobRun, job_id)).status, "queued")
+            await run_resolution_job(job_id)
+        batches = [item["outputs"] for item in trace_client.updated
+                   if "gemma_attempts" in item.get("outputs", {})]
+        self.assertEqual([(item["gemma_attempts"], item["retry_attempts"], item["failed_attempts"])
+                          for item in batches], [(3, 0, 1), (1, 1, 0)])
+        self.assertEqual(batches[-1]["version_totals"]["error_count"], 0)
         self.assertEqual(len(calls), 4)
         self.assertEqual(calls[0], calls[-1])
         self.assertEqual(len(set(calls[:3])), 3)
+        self.dispatch.assert_awaited_once_with(str(job_id))
         payload = (await self.client.get(f"/api/projects/{self.project_id}/entity-resolution/candidates")).json()
         self.assertEqual((payload["successful_count"], payload["applied_count"], payload["error_count"]), (3, 3, 0))
         async with SessionLocal() as session:
@@ -744,6 +756,9 @@ class ResolutionDatabaseTest(unittest.IsolatedAsyncioTestCase):
                 response.raise_for_status()
             return await self.fake_resolve(pair, client)
         with patch("app.queue.tasks.entity_resolution.resolve_pair", new=AsyncMock(side_effect=http_error)) as model:
+            await run_resolution_job(job_id)
+            async with SessionLocal() as session:
+                self.assertEqual((await session.get(JobRun, job_id)).status, "queued")
             await run_resolution_job(job_id)
         self.assertEqual(model.await_count, 5)
         response = await self.client.get(f"/api/projects/{self.project_id}/entity-resolution/candidates")

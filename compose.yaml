@@ -109,6 +109,7 @@ services:
       - ./data:/data:ro
       - ./config/models.yaml:/app/config/models.yaml:ro
       - ./config/datasets.yaml:/config/datasets.yaml:ro
+      - ./config/litellm.yaml:/config/litellm.yaml:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -185,6 +186,7 @@ services:
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-storyguard-local}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "4000:4000"
     volumes:

@@ -4,14 +4,82 @@ models:
       pipeline: coreference_gemma
       auto_apply: true
       request_timeout_seconds: 180
-      default: gemma4-e4b
+      default: gemini35-lite
       available:
+        gemini35-lite:
+          provider: gemini
+          provider_model: gemini-3.5-flash-lite
+          litellm_alias: storyguard-entity-resolution
+          deployment_id: sg-resolution-prod-gemini35-lite-v1
+          max_output_tokens: 1536
+          thinking: disabled
+          fallback: gemma4-e4b
+          api_pricing: user_declared_free_tier
+          paid_input_usd_per_million: 0.30
+          paid_output_usd_per_million: 2.50
+          pricing_source: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite
+          pricing_checked: "2026-09-13"
+        gemini31-lite:
+          provider: gemini
+          provider_model: gemini-3.1-flash-lite
+          litellm_alias: storyguard-entity-resolution
+          deployment_id: sg-resolution-prod-gemini31-lite-v1
+          max_output_tokens: 1536
+          thinking: disabled
+          fallback: gemma4-e4b
+          api_pricing: user_declared_free_tier
+          paid_input_usd_per_million: 0.25
+          paid_output_usd_per_million: 1.50
+          pricing_source: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.1-flash-lite
+          pricing_checked: "2026-09-13"
         gemma4-e4b:
           provider: ollama
           provider_model: gemma4:e4b
           digest: c6eb396dbd59
-          litellm_alias: storyguard-entity-resolution
+          litellm_alias: storyguard-entity-resolution-local
+          deployment_id: sg-resolution-prod-local-v1
           max_output_tokens: 1536
+      experiments:
+        local:
+          provider: ollama
+          provider_model: gemma4:e4b
+          digest: c6eb396dbd59
+          litellm_alias: storyguard-resolution-local-eval
+          deployment_id: sg-resolution-local-v1
+          max_output_tokens: 1536
+          api_pricing: local
+        gemini:
+          provider: gemini
+          provider_model: gemini-3.5-flash-lite
+          litellm_alias: storyguard-resolution-api-eval
+          deployment_id: sg-resolution-gemini35-lite-v1
+          max_output_tokens: 1536
+          thinking: disabled
+          api_pricing: user_declared_free_tier
+          paid_input_usd_per_million: 0.30
+          paid_output_usd_per_million: 2.50
+          pricing_source: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite
+          pricing_checked: "2026-09-13"
+        gemini31-lite:
+          provider: gemini
+          provider_model: gemini-3.1-flash-lite
+          litellm_alias: storyguard-resolution-gemini31-lite-eval
+          deployment_id: sg-resolution-gemini31-lite-v1
+          max_output_tokens: 1536
+          thinking: disabled
+          api_pricing: user_declared_free_tier
+          paid_input_usd_per_million: 0.25
+          paid_output_usd_per_million: 1.50
+          pricing_source: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.1-flash-lite
+          pricing_checked: "2026-09-13"
+        failover:
+          provider: ollama
+          provider_model: gemma4:e4b
+          digest: c6eb396dbd59
+          litellm_alias: storyguard-resolution-failover-eval
+          deployment_id: sg-resolution-failover-v1
+          max_output_tokens: 1536
+          fallback: gemini
     entity_extraction:
       default: gemma4-e4b
       default_alias: storyguard-fast

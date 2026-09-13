@@ -23,13 +23,23 @@ def default_extraction_model() -> ExtractionModel:
     return ExtractionModel(_registry()["llms"]["entity_extraction"]["default"])
 
 
-def resolution_model_config() -> dict:
+def resolution_model_config(experiment: str | None = None) -> dict:
     config = _registry()["llms"]["entity_resolution"]
+    if experiment is not None:
+        if experiment not in config.get("experiments", {}):
+            raise ValueError("Unknown entity-resolution experiment")
+        return dict(config["experiments"][experiment])
     selected = config["default"]
     available = config.get("available", {})
     if selected not in available:
         raise ValueError("Unknown entity-resolution model")
     return {**config, **available[selected]}
+
+
+def resolution_deployment_configs() -> list[dict]:
+    config = _registry()["llms"]["entity_resolution"]
+    return [dict(item) for section in ("available", "experiments")
+            for item in config.get(section, {}).values()]
 
 
 def extraction_model_config(model: str) -> dict:

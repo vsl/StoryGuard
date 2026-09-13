@@ -14,7 +14,7 @@ from langsmith import get_current_run_tree, traceable
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.ai.entity_extraction import EntityExtractionError, EntityType, _completion, _content
-from app.ai.extraction_models import resolution_model_config
+from app.ai.extraction_models import resolution_deployment_configs, resolution_model_config
 from app.ai.tracing import annotate_trace, trace_content_mode
 
 
@@ -82,7 +82,8 @@ def normalize_name(value: str) -> str:
 
 def _trace_inputs(inputs: dict) -> dict:
     pair = inputs["pair"]
-    config = resolution_model_config()
+    experiment = inputs.get("experiment")
+    config = resolution_model_config(experiment) if experiment is not None else resolution_model_config()
     result = {
         "prompt_version": PROMPT_VERSION,
         "prompt_hash": PROMPT_HASH,
@@ -114,13 +115,16 @@ def _trace_outputs(output: ResolutionResult | None) -> dict:
 async def resolve_pair(
     pair: ResolutionInput, client: httpx.AsyncClient | None = None, *,
     request_timeout: float = 180, diagnostics: dict | None = None,
+    experiment: str | None = None,
 ) -> ResolutionResult:
-    config = resolution_model_config()
+    # Experiment choices are server-owned, never raw model IDs from a request.
+    config = resolution_model_config(experiment) if experiment is not None else resolution_model_config()
     model_alias = config["litellm_alias"]
     diagnostics = diagnostics if diagnostics is not None else {}
     annotate_trace(metadata={key: diagnostics[key] for key in (
         "job_id", "run_attempt", "candidate_id", "pair_attempt", "batch_trace_id",
         "resolver", "pipeline", "request_timeout_seconds",
+        "experiment_id", "fixture_sha256", "routing_config_sha256", "case_id",
     ) if key in diagnostics})
     run = get_current_run_tree()
     diagnostics["trace_id"] = str(run.id) if run else None
@@ -144,9 +148,19 @@ async def resolve_pair(
                 output_schema=ResolutionOutput, schema_name="entity_resolution",
                 max_tokens=config["max_output_tokens"],
                 request_timeout=request_timeout,
+                diagnostics=diagnostics,
             )
         if not isinstance(payload, dict):
             payload = {}
+        resolved_model = None
+        if diagnostics.get("gateway_calls"):
+            call = diagnostics["gateway_calls"][-1]
+            for deployment in resolution_deployment_configs():
+                if call.get("deployment_id") == deployment.get("deployment_id"):
+                    resolved_model = deployment["provider_model"]
+                    call.update(resolved_model=resolved_model, resolved_provider=deployment["provider"],
+                                model_identity_source="deployment_id_mapping")
+            annotate_trace(metadata={"gateway_calls": diagnostics["gateway_calls"]})
         token_usage = payload.get("usage")
         token_usage = token_usage if isinstance(token_usage, dict) else {}
         for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
@@ -156,6 +170,7 @@ async def resolve_pair(
         content = "{}"
         try:
             content, model = _content(payload, model_alias)
+            model = resolved_model or model
             output = ResolutionOutput.model_validate_json(content)
             cited = set(output.evidence_ids)
             if not cited <= allowed or len(cited) != len(output.evidence_ids):
@@ -167,7 +182,11 @@ async def resolve_pair(
                 output, model, (time.perf_counter() - started) * 1000,
                 attempt, usage, str(run.id) if run else None,
             )
-        except (ValidationError, ValueError, EntityExtractionError):
+        except (ValidationError, ValueError, EntityExtractionError) as exc:
+            failure = ("schema" if isinstance(exc, ValidationError) else
+                       "evidence" if isinstance(exc, ValueError) else "completion_content")
+            diagnostics.setdefault("output_failures", []).append(failure)
+            annotate_trace(metadata={"output_failures": diagnostics["output_failures"]})
             # Do not expose a Pydantic exception containing manuscript/model text.
             messages.extend([
                 {"role": "assistant", "content": content[:4000]},

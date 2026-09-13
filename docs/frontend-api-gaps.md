@@ -390,8 +390,10 @@ to be done.
 
 ### Entity resolution boundaries (Lesson 5.2)
 
-The resolver uses the server-owned `storyguard-entity-resolution` alias, mapped
-to local `gemma4:e4b`, regardless of the upload extractor. It accepts only
+The resolver uses the server-owned `storyguard-entity-resolution` alias,
+regardless of the upload extractor. Since Lesson 6.1, LiteLLM load balances that
+alias across Gemini 3.5 Flash Lite and Gemini 3.1 Flash Lite; local
+`gemma4:e4b` is the bounded fallback. It accepts only
 `merge`, `keep_separate`, or `needs_review` and server-issued evidence IDs.
 One invalid-output repair is allowed, then the candidate is marked as a technical
 failure, not as an LLM `needs_review` decision.

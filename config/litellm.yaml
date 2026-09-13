@@ -1,6 +1,23 @@
 model_list:
   - model_name: storyguard-entity-resolution
-    litellm_params:
+    model_info:
+      id: sg-resolution-prod-gemini35-lite-v1
+    litellm_params: &resolution_gemini35
+      model: gemini/gemini-3.5-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+      timeout: 180
+      num_retries: 1
+      thinking: {type: disabled}
+  - model_name: storyguard-entity-resolution
+    model_info:
+      id: sg-resolution-prod-gemini31-lite-v1
+    litellm_params: &resolution_gemini31
+      <<: *resolution_gemini35
+      model: gemini/gemini-3.1-flash-lite
+  - model_name: storyguard-entity-resolution-local
+    model_info:
+      id: sg-resolution-prod-local-v1
+    litellm_params: &resolution_local
       model: ollama_chat/gemma4:e4b
       api_base: http://host.docker.internal:11434
       timeout: 180
@@ -18,8 +35,64 @@ model_list:
       model: ollama_chat/qwen3.5:9b
       api_base: http://host.docker.internal:11434
       think: false
+  - model_name: storyguard-resolution-local-eval
+    model_info:
+      id: sg-resolution-local-v1
+    litellm_params: &resolution_local_eval
+      <<: *resolution_local
+  - model_name: storyguard-resolution-api-eval
+    model_info:
+      id: sg-resolution-gemini35-lite-v1
+    litellm_params:
+      <<: *resolution_gemini35
+      num_retries: 0
+  - model_name: storyguard-resolution-gemini31-lite-eval
+    model_info:
+      id: sg-resolution-gemini31-lite-v1
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+      timeout: 180
+      num_retries: 0
+      thinking: {type: disabled}
+  - model_name: storyguard-resolution-failover-eval
+    model_info:
+      id: sg-resolution-failover-v1
+    litellm_params:
+      <<: *resolution_local_eval
+      num_retries: 1
   - model_name: storyguard-entity-qwen35-4b
     litellm_params:
       model: ollama_chat/qwen3.5:4b
       api_base: http://host.docker.internal:11434
       think: false
+
+# Production prefers the promoted API model; the experiment keeps its inverse
+# failure injection so both directions stay observable.
+router_settings:
+  max_fallbacks: 1
+  fallbacks:
+    - storyguard-entity-resolution: [storyguard-entity-resolution-local]
+    - storyguard-resolution-failover-eval: [storyguard-resolution-api-eval]
+  model_group_retry_policy:
+    storyguard-entity-resolution:
+      AuthenticationErrorRetries: 0
+      BadRequestErrorRetries: 0
+      TimeoutErrorRetries: 1
+      RateLimitErrorRetries: 1
+      InternalServerErrorRetries: 1
+      ContentPolicyViolationErrorRetries: 0
+    storyguard-entity-resolution-local: &no_provider_retries
+      AuthenticationErrorRetries: 0
+      BadRequestErrorRetries: 0
+      TimeoutErrorRetries: 0
+      RateLimitErrorRetries: 0
+      InternalServerErrorRetries: 0
+      ContentPolicyViolationErrorRetries: 0
+    storyguard-resolution-local-eval: *no_provider_retries
+    storyguard-resolution-api-eval: *no_provider_retries
+    storyguard-resolution-failover-eval:
+      <<: *no_provider_retries
+      TimeoutErrorRetries: 1
+      RateLimitErrorRetries: 1
+      InternalServerErrorRetries: 1

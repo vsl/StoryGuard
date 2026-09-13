@@ -27,10 +27,11 @@ completed_lessons:
   - "5.1 Entity extraction"
   - "5.2 Entity resolution"
   - "5.3 Facts / events / relationships"
+  - "6.1 Model gateway and trade-offs"
 
 current_lesson:
-  id: "6.1"
-  title: "Model gateway and trade-offs"
+  id: "7.1"
+  title: "Grounded Story QA"
   status: "not_started"
 
 current_lesson_state:

@@ -294,7 +294,7 @@ async def save_prediction(
         "prompt_version": PROMPT_VERSION, "prompt_hash": PROMPT_HASH,
         "model_alias": resolution_config()["litellm_alias"],
         "configured_model": resolution_config()["provider_model"],
-        "model_digest": resolution_config()["digest"],
+        "model_digest": resolution_config().get("digest"),
         "resolved_model": result.model if result else None,
         "latency_ms": result.latency_ms if result else None,
         "repair_count": result.repair_count if result else None,
