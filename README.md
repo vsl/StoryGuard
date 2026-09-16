@@ -1,189 +1,88 @@
-# StoryGuard Codex Course Pack v2
+# StoryGuard
 
-This is the course/control layer for an existing StoryGuard repository.
+**An evidence-first manuscript analysis application and AI engineering portfolio project.**
 
-## Project scope
+StoryGuard turns uploaded manuscripts into searchable passages and a source-linked Story Bible of entities, facts, events, and relationships. It combines hybrid retrieval, pretrained specialist models, structured LLM outputs, background processing, and measured model comparisons.
 
-StoryGuard is a personal, non-commercial AI Engineering portfolio and learning
-project, with no production deployment or planned sale. Non-commercial models
-and datasets are acceptable; retain attribution, provenance, and license terms.
-Revisit licensing suitability only if this intended use changes.
+**[Read the architecture guide](docs/architecture/README.md)** · **[Prepare for interviews](docs/architecture/interview-guide.md)** · **[Explore models and routing](docs/architecture/models-and-gateway.md)**
 
-The [focused course](COURSE.md) targets one complete portfolio flow: upload a
-manuscript, browse Story Bible, ask questions with real citations, and review
-possible character-attribute contradictions. Lessons 0–5, including 5.3, are
-complete. The 2026-09-11 curriculum leaves seven core lessons starting at 6.1,
-then requested Lesson 12.1: one small LoRA style experiment after the local app
-is complete. This documentation revision does not implement those features.
+![StoryGuard architecture: browser and API, background workers, storage, local models, and external model/trace services](docs/architecture/diagrams/system-overview.svg)
 
-Reuse the existing retrieval, tracing, Experiment Lab, story memory, and model
-gateway. Bounded planning, evaluations, grounding, and reliability remain core.
-Query rewriting and HyDE are optional experiments. Broader continuity,
-product-help chat, checking pasted text, and advanced version management are
-deferred. GCP/cloud deployment and AI CI/CD/GTM are outside the course; local
-Docker does not demonstrate cloud experience. The LoRA lesson adds no product
-UI, API, or service and does not automatically promote an adapter. The existing
-stack and promoted models are unchanged.
+## What works today
 
-Supported story entities: characters/people, facilities/buildings, countries
-and settlements, natural/geographical locations, organizations, and vehicles.
-General items/artifacts and a catch-all category are outside current scope.
-These are product categories, independent of the selected model or dataset.
-Entity resolution defaults to xCoRe + Gemma: supported exact-span coreference
-links skip Gemma; remaining candidate pairs use Gemma. Automatic merging stays
-on. Qwen comparison is deferred. This is a developer-approved speed-oriented
-promotion with known wrong-merge risk, not demonstrated full-book accuracy.
+| Capability | Implementation |
+| --- | --- |
+| Manuscript ingestion | TXT, Markdown, and DOCX; versioned original files; chapter/scene parsing; overlapping chunks; progress and cancellation |
+| Search | Elasticsearch BM25 + EmbeddingGemma vectors, Python RRF fusion, and selectable BGE cross-encoder reranking |
+| Named entities | Gemma extraction by default; selectable GLiNER2.5 Base or Qwen3.5 9B; source spans and type validation |
+| Entity resolution | xCoRe exact-span shortcuts, Gemini deployment pool with local Gemma fallback, audited merge decisions, review, Stop/Resume |
+| Story memory | Evidence-linked facts, events, relationships, narrative/chronological Timeline, and partial-coverage reporting |
+| Experiment Lab | Fixed development retrieval comparisons, fingerprinted artifacts, metrics, and failure inspection |
+| Observability | Optional LangSmith traces with configurable content privacy |
 
-The worker image includes an isolated coreference runtime. Rebuild with
-`docker compose up -d --build backend worker frontend`, then use **Resolve
-entities** or **Resume resolution** in Story Bible. Completed coreference output
-is cached per manuscript version; Stop kills an unfinished scan. The UI shows
-the combined pipeline, merges applied without Gemma, and pairs sent to Gemma.
-Coreference failures visibly fall back to Gemma. Set
-`models.llms.entity_resolution.pipeline: gemma` in `config/models.yaml` and
-restart backend/worker to roll back routing; existing decisions are not undone.
+Grounded Story QA, bounded planning, and character-attribute continuity review are upcoming. Some frontend screens anticipate those capabilities; their presence does not mean a working backend exists. The authoritative [course progress](COURSE_PROGRESS.md) currently points to **7.1: Grounded Story QA — not started**.
 
-The Docker application database contains disposable test data and may be
-explicitly reset for this iteration. Do not infer permission to wipe unrelated
-databases, Docker volumes, original source files, or model caches.
+## How it is built
 
-## Frontend
+- **Application:** Next.js / React / TypeScript / Tailwind → FastAPI / Pydantic.
+- **State and processing:** PostgreSQL / SQLAlchemy / Alembic, MinIO, Taskiq + RabbitMQ.
+- **Retrieval:** Elasticsearch 8.19, Sentence Transformers, EmbeddingGemma, BGE reranker.
+- **AI:** pretrained GLiNER and xCoRe, Ollama-hosted Gemma/Qwen, LiteLLM-routed Gemini, LangSmith traces.
+- **Runtime:** local Docker Compose; Ollama runs on the host.
 
-StoryGuard now includes the complete evidence-first frontend shell described in
-`docs/specs/storyguard_ui_spec.md`. It provides project CRUD, manuscript and
-Story Bible views, continuity review, contextual AI chat, analysis/version
-screens, settings, and the internal AI Experiment Lab.
+The model gateway handles generative calls. Embeddings, reranking, GLiNER, and xCoRe run directly in API/worker runtimes. PostgreSQL owns domain state; Elasticsearch is a derived index. No custom-trained model or fine-tuned adapter is currently deployed.
 
-Start the currently implemented application slice:
+## Documentation
 
-```bash
-docker compose up -d --build frontend worker
+| Start here | Go deeper |
+| --- | --- |
+| [System overview and capability status](docs/architecture/system-overview.md) | [Application, API, and storage](docs/architecture/application-and-storage.md) |
+| [Manuscript ingestion](docs/architecture/manuscript-ingestion.md) | [Embeddings, search, and reranking](docs/architecture/embeddings-and-search.md) |
+| [Entity extraction and resolution](docs/architecture/entity-extraction-and-resolution.md) | [Facts, events, and relationships](docs/architecture/structured-story-memory.md) |
+| [Model inventory and LiteLLM load balancing](docs/architecture/models-and-gateway.md) | [Evaluation, measured trade-offs, and tracing](docs/architecture/evaluation-and-observability.md) |
+| [Interview walkthrough and answers](docs/architecture/interview-guide.md) | [Glossary and reading paths](docs/architecture/README.md) |
+
+The guide includes editable Mermaid diagrams and shareable SVG images. It distinguishes active behavior from historical experiments and future designs.
+
+## Run locally
+
+Prerequisites: Docker with Compose, host Ollama reachable from containers at `host.docker.internal:11434`, and `gemma4:e4b` available in Ollama for default extraction, structured memory, and resolution fallback. Pull a Qwen model only if you select that extractor. The Compose setup is oriented to Docker Desktop; other hosts may require host-network configuration.
+
+Create the local environment file without overwriting an existing one:
+
+```sh
+test -f .env || cp .env.example .env
 ```
 
-Compose starts their PostgreSQL, MinIO, RabbitMQ, Elasticsearch, and backend
-dependencies. LiteLLM is already used by extraction and resolution; Lesson 6.1
-extends that integration with a local/API comparison and bounded fallback.
+Set `HF_TOKEN` after accepting EmbeddingGemma's Hugging Face access terms. Set `GEMINI_API_KEY` for the promoted resolution API pool. Keep credentials in the ignored `.env` file. LangSmith is optional and disabled by default. Model downloads need network access and local disk/RAM; first use can take considerably longer than warm inference.
 
-Then open:
+From the repository root:
 
-```text
-http://localhost:3000
+```sh
+docker compose config --quiet
+docker compose up -d --build backend worker frontend
 ```
 
-Browser API calls stay same-origin. Next.js proxies `/api/*` to
-`API_PROXY_TARGET` (`http://backend:8000` in Compose), so internal Docker names
-and backend credentials are never sent to the browser.
+Compose starts the storage, queue, search, and LiteLLM dependencies. The backend applies Alembic migrations on startup. Open the [application](http://localhost:3000) and [backend API documentation](http://localhost:8000/docs).
 
-The backend implements project CRUD plus the real manuscript upload, version,
-job progress, parsing/BM25/vector ingestion, and chapter-reading vertical slice. Later
-UI capabilities whose endpoints do not exist show an explicit unavailable
-state. See `docs/frontend-api-gaps.md`.
+Create a project, upload a short manuscript, and wait until processing completes. Search and the chapter reader then use the current ready version. Resolve entities from Story Bible, then explicitly build story memory to populate facts/events/relationships. Search starts with reranking enabled; uncheck it for the hybrid-only path.
 
-## LangSmith tracing
+The Experiment Lab additionally needs the local retrieval fixtures; follow the existing [dataset guide](docs/DATASETS.md) and [bootstrap script](backend/scripts/bootstrap_datasets.py). Downloaded datasets, model caches, and detailed experiment artifacts are not all included in a fresh clone.
 
-Tracing is disabled by default and search still works when LangSmith is absent.
+These instructions were checked against Compose, Dockerfiles, environment names, and route/configuration code. A clean image build and live model workflow were **not rerun for this documentation update**. See [documentation verification](docs/architecture/verification.md).
 
-1. Sign in at [smith.langchain.com](https://smith.langchain.com/), open
-   **Settings → API Keys**, and create a key. Copy it immediately; LangSmith does
-   not show the value again.
-2. Put the key in the repository's untracked `.env` file, not `.env.example`:
+## Engineering evidence
 
-   ```dotenv
-   LANGSMITH_API_KEY=your-key
-   LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-   LANGSMITH_PROJECT=storyguard-local
-   LANGSMITH_TRACE_CONTENT=minimal
-   LANGSMITH_TRACING=true
-   ```
+- Hybrid retrieval improved held-out Recall@10 from **0.8734 to 0.9056** versus BM25. [Experiment](docs/experiments/2026-08-25-hybrid-rrf.md)
+- Reranking improved MRR@10 from **0.7126 to 0.8544** across 233 test queries, with substantial local latency cost. [Results and trade-off](docs/learning/cross-encoder-reranking.md)
+- Two Gemini deployments passed the fixed pool-admission comparison; another API model was rejected for frequent provider failures. [Promotion report](docs/experiments/2026-09-13-flash-lite-pool-promotion.md)
 
-   For an EU LangSmith workspace, use
-   `https://eu.api.smith.langchain.com` as the endpoint.
-3. Rebuild the services so the pinned SDK and environment are loaded:
+These are historical, scoped measurements, not production guarantees. The [evaluation guide](docs/architecture/evaluation-and-observability.md) also covers known regressions, small-sample limitations, and the difference between valid evidence references and correct interpretation.
 
-   ```bash
-   docker compose up -d --build backend worker frontend
-   ```
-4. Upload and finish processing a manuscript, then run either search path:
+## Learning course and project scope
 
-   - UI: open a project, click **Search**, choose whether to use the reranker,
-     and submit a query.
-   - Swagger: open [localhost:8000/docs](http://localhost:8000/docs), expand
-     `GET /api/projects/{project_id}/search`, enter the project UUID and query,
-     set `rerank`, then click **Execute**.
-5. Open [LangSmith](https://smith.langchain.com/), select **Tracing Projects →
-   storyguard-local**, and open the newest `retrieve_hybrid` or
-   `retrieve_hybrid_reranked` trace. The reranked trace should contain parallel
-   `retrieve_bm25` and `retrieve_vector` spans, followed by `rrf_fusion` and
-   `reranker`. With `rerank=false`, the `reranker` span is absent.
+StoryGuard is also a dialogue-first AI engineering course. Use `$storyguard-course-lesson` to continue from [COURSE_PROGRESS.md](COURSE_PROGRESS.md). [COURSE.md](COURSE.md) defines the remaining lessons; [USER_COMMANDS.md](USER_COMMANDS.md) and [CODEX_WORKFLOW.md](CODEX_WORKFLOW.md) explain the workflow.
 
-`LANGSMITH_TRACE_CONTENT` controls external trace content:
+[Learning notes](docs/learning/README.md), [experiment reports](docs/experiments/README.md), and [design specifications](docs/specs/storyguard_backend_ai_spec.md) serve different purposes: completed understanding, historical evidence, and intended design. The [architecture guide](docs/architecture/README.md) describes the current implementation.
 
-- `minimal` (default): hashed IDs, counts, scores, versions, parameters, and
-  timings; no query or manuscript text.
-- `redacted`: the same diagnostics plus content-shaped fields replaced by
-  `<redacted:N chars>`.
-- `full`: raw queries and retrieved chunks. Use only as an explicit opt-in for
-  public or synthetic manuscripts.
-
-Frontend checks:
-
-```bash
-cd frontend
-npm test
-npm run lint
-npm run build
-npm run test:e2e
-```
-
-## Your current position
-
-See `COURSE_PROGRESS.md`, the authoritative course cursor.
-
-## Normal command
-
-You only need:
-
-```text
-$storyguard-course-lesson
-```
-
-No long prompt.
-
-Codex will read `COURSE_PROGRESS.md` and continue automatically.
-
-## Core behavior
-
-Codex must:
-
-```text
-ask
-→ wait for your answer
-→ discuss what is right/wrong
-→ show correct mental model
-→ propose implementation
-→ ask for approval
-→ only then write code
-```
-
-## Included
-
-- `AGENTS.md`
-- `COURSE.md`
-- `COURSE_PROGRESS.md`
-- `CODEX_WORKFLOW.md`
-- `USER_COMMANDS.md`
-- five StoryGuard skills
-- nested backend/AI/frontend instructions
-- `.codex/config.toml`
-- `.codex/rules/safety.rules`
-- backend/UI specifications
-- Hugging Face dataset strategy
-- model/dataset config examples
-- learning/experiment/ADR templates
-- guide for applying to existing repository
-
-See:
-
-```text
-APPLY_TO_EXISTING_REPO.md
-```
+This is a personal, non-commercial local project with no production deployment or planned sale. Model and dataset attribution, provenance, and license terms remain applicable. Cloud deployment is outside the current course. The requested post-core LoRA experiment is isolated future work, not an active product dependency.
