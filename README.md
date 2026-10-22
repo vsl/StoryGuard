@@ -1,10 +1,10 @@
 # StoryGuard
 
-**An evidence-first manuscript analysis application and AI engineering portfolio project.**
+**An evidence-first manuscript analysis application.**
 
 StoryGuard turns uploaded manuscripts into searchable passages and a source-linked Story Bible of entities, facts, events, and relationships. It combines hybrid retrieval, pretrained specialist models, structured LLM outputs, background processing, and measured model comparisons.
 
-**[Read the architecture guide](docs/architecture/README.md)** · **[Prepare for interviews](docs/architecture/interview-guide.md)** · **[Explore models and routing](docs/architecture/models-and-gateway.md)**
+**[Read the architecture guide](docs/architecture/README.md)** · **[Explore models and routing](docs/architecture/models-and-gateway.md)**
 
 ![StoryGuard architecture: browser and API, background workers, storage, local models, and external model/trace services](docs/architecture/diagrams/system-overview.svg)
 
@@ -20,7 +20,7 @@ StoryGuard turns uploaded manuscripts into searchable passages and a source-link
 | Experiment Lab | Fixed development retrieval comparisons, fingerprinted artifacts, metrics, and failure inspection |
 | Observability | Optional LangSmith traces with configurable content privacy |
 
-Grounded Story QA, bounded planning, and character-attribute continuity review are upcoming. Some frontend screens anticipate those capabilities; their presence does not mean a working backend exists. The authoritative [course progress](COURSE_PROGRESS.md) currently points to **7.1: Grounded Story QA — not started**.
+Grounded Story QA, bounded planning, and character-attribute continuity review are upcoming. Some frontend screens anticipate those capabilities; their presence does not mean a working backend exists. See the [capability status](docs/architecture/system-overview.md#capability-status) for current implementation boundaries.
 
 ## How it is built
 
@@ -40,7 +40,7 @@ The model gateway handles generative calls. Embeddings, reranking, GLiNER, and x
 | [Manuscript ingestion](docs/architecture/manuscript-ingestion.md) | [Embeddings, search, and reranking](docs/architecture/embeddings-and-search.md) |
 | [Entity extraction and resolution](docs/architecture/entity-extraction-and-resolution.md) | [Facts, events, and relationships](docs/architecture/structured-story-memory.md) |
 | [Model inventory and LiteLLM load balancing](docs/architecture/models-and-gateway.md) | [Evaluation, measured trade-offs, and tracing](docs/architecture/evaluation-and-observability.md) |
-| [Interview walkthrough and answers](docs/architecture/interview-guide.md) | [Glossary and reading paths](docs/architecture/README.md) |
+| [Dataset provenance and setup](docs/DATASETS.md) | [Glossary and reading paths](docs/architecture/README.md) |
 
 The guide includes editable Mermaid diagrams and shareable SVG images. It distinguishes active behavior from historical experiments and future designs.
 
@@ -79,10 +79,6 @@ These instructions were checked against Compose, Dockerfiles, environment names,
 
 These are historical, scoped measurements, not production guarantees. The [evaluation guide](docs/architecture/evaluation-and-observability.md) also covers known regressions, small-sample limitations, and the difference between valid evidence references and correct interpretation.
 
-## Learning course and project scope
+## Project scope
 
-StoryGuard is also a dialogue-first AI engineering course. Use `$storyguard-course-lesson` to continue from [COURSE_PROGRESS.md](COURSE_PROGRESS.md). [COURSE.md](COURSE.md) defines the remaining lessons; [USER_COMMANDS.md](USER_COMMANDS.md) and [CODEX_WORKFLOW.md](CODEX_WORKFLOW.md) explain the workflow.
-
-[Learning notes](docs/learning/README.md), [experiment reports](docs/experiments/README.md), and [design specifications](docs/specs/storyguard_backend_ai_spec.md) serve different purposes: completed understanding, historical evidence, and intended design. The [architecture guide](docs/architecture/README.md) describes the current implementation.
-
-This is a personal, non-commercial local project with no production deployment or planned sale. Model and dataset attribution, provenance, and license terms remain applicable. Cloud deployment is outside the current course. The requested post-core LoRA experiment is isolated future work, not an active product dependency.
+StoryGuard is a non-commercial local application with no production deployment or planned sale. Model and dataset attribution, provenance, and license terms remain applicable. Docker Compose provides the local runtime; cloud deployment is outside the current project scope.

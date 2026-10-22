@@ -1,6 +1,6 @@
 # StoryGuard Backend Instructions
 
-Read root `AGENTS.md`, `COURSE_PROGRESS.md`, and backend spec.
+Read root `AGENTS.md`, `docs/maintainer/COURSE_PROGRESS.md`, and backend spec.
 
 The root approval gate applies here.
 

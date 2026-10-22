@@ -13,5 +13,5 @@ Template:
 ## Alternatives
 ## Why
 ## Consequences
-## Interview talking point
+## Design rationale
 ```

@@ -325,7 +325,7 @@ also absent, so the forms accept a BCP 47 code and default to the backend defaul
 ## Missing core work and deferred capabilities
 
 These are implementation gaps, not features delivered by the course revision.
-`COURSE.md` owns scope and lesson order. Keep deferred UI paths explicitly
+`docs/maintainer/COURSE.md` owns scope and lesson order. Keep deferred UI paths explicitly
 unavailable/disabled. Reuse existing structured facts and embedded evidence;
 a placeholder or proposed endpoint does not require a new subsystem.
 

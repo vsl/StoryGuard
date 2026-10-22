@@ -1,6 +1,6 @@
 # Interview guide
 
-[Guide index](README.md) · Previous: [Evaluation and observability](evaluation-and-observability.md)
+[Maintainer index](README.md) · [Architecture guide](../architecture/README.md) · [Evaluation and observability](../architecture/evaluation-and-observability.md)
 
 These suggested explanations are grounded in the current repository. Adapt them to your own understanding. Historical numbers should always travel with their dataset size and limitations.
 
@@ -10,11 +10,11 @@ These suggested explanations are grounded in the current repository. Adapt them 
 
 ## A five-minute architecture walkthrough
 
-1. **Start with data ownership.** Show the [architecture image](diagrams/system-overview.svg). Explain why original files, durable state, and a derived index live in different stores.
+1. **Start with data ownership.** Show the [architecture image](../architecture/diagrams/system-overview.svg). Explain why original files, durable state, and a derived index live in different stores.
 2. **Follow one upload.** The API validates and versions the file, returns a job ID, and the worker parses, embeds, indexes, and extracts. The current pointer advances only when the version is ready.
-3. **Follow one search.** Show the [search image](diagrams/embeddings-and-search.svg): current-version filters, concurrent BM25/vector candidates, RRF, optional cross-encoder stage, and source-linked top-ten passages. Mention that the option is currently enabled by default.
+3. **Follow one search.** Show the [search image](../architecture/diagrams/embeddings-and-search.svg): current-version filters, concurrent BM25/vector candidates, RRF, optional cross-encoder stage, and source-linked top-ten passages. Mention that the option is currently enabled by default.
 4. **Explain identity and memory.** Extraction finds names/types; resolution groups identities; memory extracts facts/events/relationships. Each can fail differently, and citation validity does not guarantee semantic truth.
-5. **Explain model choice with evidence.** Show the [gateway image](diagrams/models-and-gateway.svg), one successful trade-off, and one rejected or risky candidate. Finish with current limitations.
+5. **Explain model choice with evidence.** Show the [gateway image](../architecture/diagrams/models-and-gateway.svg), one successful trade-off, and one rejected or risky candidate. Finish with current limitations.
 
 ## Questions and suggested answers
 

@@ -5,7 +5,11 @@ description: Interactively review or interview the developer on already implemen
 
 # StoryGuard Learning Review
 
-Use actual StoryGuard code/tests/traces.
+Read root `AGENTS.md` and `docs/maintainer/COURSE_PROGRESS.md` to identify
+completed topics. Instruction paths are repository-relative. Use actual
+StoryGuard code/tests/traces; for interview practice, consult
+`docs/maintainer/interview-guide.md` as relevant and verify its claims against
+the current implementation.
 
 Ask 1–3 questions at a time.
 

@@ -1,6 +1,6 @@
 # Evaluation and observability
 
-[Guide index](README.md) · Previous: [Models](models-and-gateway.md) · Next: [Interview guide](interview-guide.md)
+[Guide index](README.md) · Previous: [Models](models-and-gateway.md)
 
 ## Purpose
 

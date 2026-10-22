@@ -8,7 +8,9 @@ Normal command:
 $storyguard-course-lesson
 ```
 
-The skill reads `COURSE_PROGRESS.md` and automatically continues from the current lesson.
+The skill reads `docs/maintainer/COURSE_PROGRESS.md` and automatically continues
+from the current lesson. File paths in these instructions are relative to the
+repository root.
 
 Do not manually specify the lesson unless you intentionally want to review/jump.
 
@@ -53,11 +55,11 @@ configurations or authorize implementing future lessons. AI behavior changes
 still require prediction, baseline/candidate evaluation, developer interpretation,
 and explicit promotion.
 
-`COURSE_PROGRESS.md` remains the authoritative cursor. The 2026-09-11 revision
-preserves completed Lessons 0–5, including 5.3, and the next lesson is 6.1.
-Seven core lessons remain, followed by the requested practical fine-tuning
-lesson 12.1 after the local application is complete. Do not reopen completed
-lessons or require perfect full-book extraction or entity resolution before QA.
+`docs/maintainer/COURSE_PROGRESS.md` is the authoritative source for completed
+lessons, the current lesson, and its checkpoint state. Follow the core sequence
+below from that cursor, then the requested practical fine-tuning lesson 12.1
+after the local application is complete. Do not reopen completed lessons or
+require perfect full-book extraction or entity resolution before QA.
 
 ## Scope and stopping rules
 

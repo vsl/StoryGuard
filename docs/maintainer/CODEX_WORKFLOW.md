@@ -1,5 +1,7 @@
 # StoryGuard Codex Workflow
 
+[Maintainer index](README.md) · [Commands](USER_COMMANDS.md)
+
 ## Normal use
 
 You normally type only:
@@ -13,17 +15,18 @@ That is enough.
 The skill reads:
 
 ```text
-COURSE_PROGRESS.md
-→ COURSE.md
+docs/maintainer/COURSE_PROGRESS.md
+→ docs/maintainer/COURSE.md
 → relevant specs
 ```
 
 and continues automatically.
 
-Always resume the position in `COURSE_PROGRESS.md`; do not infer it from the
-original course pack. The focused curriculum in `COURSE.md` preserves completed
-lessons and defines nine remaining core lessons after 5.3. Optional labs are
-chosen explicitly, never required to graduate or selected automatically.
+Always resume the position in `docs/maintainer/COURSE_PROGRESS.md`; do not infer
+it from the original course pack or a copied lesson summary. The curriculum in
+`docs/maintainer/COURSE.md` defines the core sequence and requested post-core
+lesson. Optional labs are chosen explicitly, never required to graduate or
+selected automatically. Instruction paths are relative to the repository root.
 
 Build grounded QA, bounded planning/tools, and character-attribute continuity
 review using the existing stack. Integrate and secure each feature as it is
@@ -174,4 +177,8 @@ Codex implements and gives checkpoint...
 You report what you saw.
 ```
 
-The skill owns the workflow.
+The skill owns the workflow. Root `AGENTS.md` and `.agents/skills/` remain the
+agent entry points. Follow the documentation maintenance rule in `AGENTS.md`
+during approved changes: keep affected product documentation and maintainer
+guides accurate, preserve historical experiment evidence, and update course
+progress and learning notes only when their existing gates are satisfied.

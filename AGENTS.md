@@ -39,8 +39,8 @@ No long prompt is required.
 
 When invoked, the skill MUST:
 
-1. read `COURSE_PROGRESS.md`;
-2. read `COURSE.md`;
+1. read `docs/maintainer/COURSE_PROGRESS.md`;
+2. read `docs/maintainer/COURSE.md`;
 3. identify the current lesson;
 4. continue from that lesson;
 5. never repeat completed lessons unless the developer asks;
@@ -61,23 +61,25 @@ treat it identically.
 
 Before implementation, read as relevant:
 
-- `COURSE_PROGRESS.md`
-- `COURSE.md`
+- `docs/maintainer/COURSE_PROGRESS.md`
+- `docs/maintainer/COURSE.md`
 - `docs/specs/storyguard_backend_ai_spec.md`
 - `docs/specs/storyguard_ui_spec.md`
 
 Do not silently change locked architecture.
 
-`COURSE.md` defines the core, requested post-core lesson, and optional labs.
+`docs/maintainer/COURSE.md` defines the core, requested post-core lesson, and optional labs.
 Broader deferred designs in the specifications are references, not graduation requirements.
 The core is grounded Story QA with bounded planning and character-attribute
 continuity review. Reuse completed retrieval, tracing, Experiment Lab, and story
 memory; freeze their expansion unless a defect blocks the core demo. Preserve
 promoted AI configurations and the experiment/promotion gate.
 
-Lessons 0–5, including 5.3, are complete; the current cursor is 6.1. Follow the
-seven remaining core lessons in `COURSE.md`, then the requested post-core 12.1
-LoRA style experiment. Former 9.2 is merged into 9.1; former 10.2 into 10.1.
+Read completed lessons and the current cursor from
+`docs/maintainer/COURSE_PROGRESS.md`; do not infer them from historical summaries.
+Follow the remaining core sequence in `docs/maintainer/COURSE.md`, then the
+requested post-core 12.1 LoRA style experiment. Former 9.2 is merged into 9.1;
+former 10.2 into 10.1.
 Do not resurrect old future lesson IDs or automatically start unrequested labs.
 GCP/cloud deployment and AI CI/CD/GTM are outside this course; keep local tests
 and regression evaluation. Local Docker is not evidence of cloud experience.
@@ -105,6 +107,42 @@ If a consequential decision is missing:
 4. recommend one;
 5. ask for approval;
 6. STOP.
+
+---
+
+# Documentation Locations and Maintenance
+
+Instruction paths are relative to the repository root. Root `AGENTS.md` and
+`.agents/skills/` remain the agent entry points; skill names and invocation
+commands are unchanged. The maintainer index is `docs/maintainer/README.md`.
+Course state, curriculum, commands, workflow, and interview preparation live
+under `docs/maintainer/`; use those canonical files, with no duplicate root
+copies. Learning notes remain in `docs/learning/` and reports in
+`docs/experiments/`.
+
+During every approved change, review and update the documents affected by the
+actual behavior or design change in the same implementation phase:
+
+- `README.md` and `docs/architecture/`: current capabilities, setup, request/data
+  flow, model defaults, limitations, and evidence links. Keep public navigation
+  focused on the application; do not add interview/course links, lesson
+  progress, or personal preparation instructions to these entry points.
+- `docs/specs/`: approved design and interface changes; retain locked
+  architecture and clearly distinguish deferred work from implemented behavior.
+- `docs/frontend-api-gaps.md`: integration coverage and lifecycle changes.
+- `docs/DATASETS.md`: dataset, provenance, or setup changes when relevant.
+- `docs/maintainer/`: affected workflow instructions, commands, and interview
+  explanations. Resolve current progress from its canonical file rather than
+  maintaining copied current-lesson claims elsewhere.
+
+Preserve the existing gates: documentation maintenance does not authorize
+writing learning artifacts early, advancing course progress, changing the
+curriculum, or promoting AI configurations. Historical experiment reports and
+measurements retain their original context; record new results separately.
+
+When moving documents, update all referring instructions, skills, and links in
+the same change. Check local links/anchors and stale paths, including hidden
+`.agents/` files. Report which documentation checks ran and any remaining gaps.
 
 ---
 
@@ -291,7 +329,7 @@ Before implementation approval, do NOT:
 
 The developer asked for a conversation, not an automatic study transcript.
 
-`COURSE_PROGRESS.md` is course metadata, but do not use it as a replacement for discussion.
+`docs/maintainer/COURSE_PROGRESS.md` is course metadata, but do not use it as a replacement for discussion.
 
 ---
 
@@ -399,7 +437,7 @@ Do not choose the winner for the developer when interpretation is the learning o
 
 # Course Progress
 
-`COURSE_PROGRESS.md` is authoritative for which lesson comes next.
+`docs/maintainer/COURSE_PROGRESS.md` is authoritative for which lesson comes next.
 
 Do not restart completed lessons.
 

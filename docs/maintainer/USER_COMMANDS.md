@@ -1,5 +1,7 @@
 # StoryGuard — Commands You Actually Need
 
+[Maintainer index](README.md) · [Workflow](CODEX_WORKFLOW.md)
+
 ## Continue course
 
 ```text

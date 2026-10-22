@@ -5,6 +5,11 @@ description: Design and run StoryGuard AI experiments. Use for prompt/model/rout
 
 # StoryGuard AI Experiment
 
+Read root `AGENTS.md`. Instruction paths are repository-relative. For a course
+experiment, read `docs/maintainer/COURSE_PROGRESS.md` to identify the current
+lesson. After an approved promotion, update affected public and maintainer
+documentation under the root maintenance rule.
+
 ## 1. Explain the variable
 
 In chat explain:
