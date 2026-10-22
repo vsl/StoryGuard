@@ -1,16 +1,16 @@
 # Architecture and engineering guide
 
-This guide explains **what StoryGuard currently implements, how it works, and why the choices matter**. It is separate from the course instructions and chronological learning notes.
+This guide explains **what StoryGuard currently implements, how it works, and why the choices matter**.
 
-Implementation snapshot: **2026-09-16**. Code and active configuration take precedence over older design documents. The course cursor is Lesson **7.1: Grounded Story QA — not started**. This guide does not mark lessons complete or promote models.
+Implementation snapshot: **2026-09-16**. Code and active configuration take precedence over older design documents. See [capability status](system-overview.md#capability-status) for implemented and planned behavior.
 
 ## Choose a reading path
 
 | Reader | Suggested path |
 | --- | --- |
 | GitHub visitor, 5 minutes | [System overview](system-overview.md) → [model inventory](models-and-gateway.md#model-inventory) → [measured results](evaluation-and-observability.md#recorded-results) |
-| Interview preparation, 30 minutes | Overview → [search](embeddings-and-search.md) → [model gateway](models-and-gateway.md) → [interview guide](interview-guide.md) |
-| Developer learning the implementation | Read the pages below in order, following their source-code links |
+| Technical review, 30 minutes | Overview → [search](embeddings-and-search.md) → [model gateway](models-and-gateway.md) → [evaluation](evaluation-and-observability.md) |
+| Implementation walkthrough | Read the pages below in order, following their source-code links |
 
 ## Contents
 
@@ -22,7 +22,6 @@ Implementation snapshot: **2026-09-16**. Code and active configuration take prec
 6. [Structured story memory](structured-story-memory.md): facts, events, relationships, and evidence.
 7. [Models and LiteLLM](models-and-gateway.md): specialist models, LLM aliases, deployment pools, retries, and fallback.
 8. [Evaluation and observability](evaluation-and-observability.md): datasets, experiments, metrics, traces, and diagnosis.
-9. [Interview guide](interview-guide.md): concise explanations and questions with suggested answers.
 
 ## One example throughout
 
@@ -65,9 +64,9 @@ We follow this text from an uploaded file to searchable chunks, named mentions, 
 - **Implemented** means reachable code exists, not that every input has been proven correct.
 - **Selectable** means an explicit user/configuration choice, not automatic model routing.
 - **Historical result** means a previously recorded run with its own model, prompt, labels, hardware, and dataset.
-- **Planned** means a course/specification target, not a working endpoint.
+- **Planned** means a design target, not a working endpoint.
 
-The [specifications](../specs/storyguard_backend_ai_spec.md) describe a broader target. [Learning notes](../learning/README.md) preserve completed discussions; [experiment reports](../experiments/README.md) preserve measured decisions. Some older summaries reference Lesson 6.1 or earlier defaults; consult [course progress](../../COURSE_PROGRESS.md) and the source links here for current state.
+The [specifications](../specs/storyguard_backend_ai_spec.md) describe a broader target. Detailed [technical notes](../learning/README.md) and [experiment reports](../experiments/README.md) preserve implementation explanations and measured decisions. Historical reports may describe earlier defaults; consult the implementation source links here for current behavior.
 
 ## Maintaining this guide
 

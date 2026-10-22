@@ -1,6 +1,6 @@
 ---
 name: storyguard-course-lesson
-description: Continue the StoryGuard AI Engineer course from COURSE_PROGRESS.md. Invoke with just $storyguard-course-lesson. Must discuss/correct the developer's answers in chat, propose an implementation plan, and wait for explicit approval before touching repository files.
+description: Continue the StoryGuard AI Engineer course from docs/maintainer/COURSE_PROGRESS.md. Invoke with just $storyguard-course-lesson. Must discuss/correct the developer's answers in chat, propose an implementation plan, and wait for explicit approval before touching repository files.
 ---
 
 # StoryGuard Course Lesson
@@ -19,10 +19,13 @@ No additional prompt is required.
 
 ## Step 0 — Resolve Current Course Position
 
+Resolve instruction paths from the repository root. Follow root `AGENTS.md`,
+including its documentation maintenance rule.
+
 FIRST read:
 
-1. `COURSE_PROGRESS.md`
-2. `COURSE.md`
+1. `docs/maintainer/COURSE_PROGRESS.md`
+2. `docs/maintainer/COURSE.md`
 
 Determine:
 
@@ -35,7 +38,7 @@ current lesson status
 Rules:
 
 - Do not repeat completed lessons.
-- Current provided progress starts after Lesson 0.2.
+- Use the canonical progress file for all completed/current lesson state; do not infer it from historical summaries.
 - If `current_lesson.status = not_started`, begin that lesson.
 - If a lesson is partially implemented, inspect actual repo state before deciding what to resume.
 - If state is ambiguous, discuss it with the developer instead of guessing.
@@ -153,7 +156,8 @@ Only after approval:
 - add/update tests;
 - run relevant tests;
 - run Docker smoke if relevant;
-- run eval/security checks when relevant.
+- run eval/security checks when relevant;
+- update affected public and maintainer documentation under the root documentation maintenance rule; preserve the learning/checkpoint gates below.
 
 Do not implement future lessons “while here”.
 
@@ -166,7 +170,7 @@ For integration lessons:
 - run frontend contract/unit checks and at least one real browser-to-backend/storage/worker E2E flow without application API interception;
 - if the real local stack is unavailable, report the blocker and do not complete the lesson from mocked evidence alone.
 
-After approval, update `COURSE_PROGRESS.md` as implementation progresses if useful.
+After approval, update `docs/maintainer/COURSE_PROGRESS.md` as implementation progresses if useful.
 
 ---
 
@@ -225,8 +229,8 @@ Do not create the learning note until the checkpoint is understood.
 After learning is complete:
 
 1. write/update `docs/learning/<topic>.md`;
-2. mark current lesson complete in `COURSE_PROGRESS.md`;
-3. set next lesson from `COURSE.md` as current;
+2. mark current lesson complete in `docs/maintainer/COURSE_PROGRESS.md`;
+3. set next lesson from `docs/maintainer/COURSE.md` as current;
 4. reset current-lesson state.
 
 End with:

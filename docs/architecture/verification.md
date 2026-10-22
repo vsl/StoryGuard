@@ -56,4 +56,24 @@ Render the other Mermaid blocks when editing them, even though only three images
 
 This update changes documentation and diagram assets only. It does not change routes, schemas, prompts, models, configuration used by the application, or course progress.
 
-No fresh application unit/integration suite, clean Docker build, live browser-to-worker smoke, model evaluation, or paid inference was run for this update. No new experiment or LangSmith trace IDs were created. Existing reports retain their original run scope. Learning notes were not rewritten, and no developer learning checkpoint was marked complete. The [interview guide](interview-guide.md#practice-checkpoint) provides a practice exercise without advancing the course.
+No fresh application unit/integration suite, clean Docker build, live browser-to-worker smoke, model evaluation, or paid inference was run for this update. No new experiment or LangSmith trace IDs were created. Existing reports retain their original run scope. Learning notes were not rewritten, and no developer learning checkpoint was marked complete.
+
+## Documentation navigation update — 2026-10-22
+
+Reorganized documentation and updated referring agent instructions. Public
+navigation now focuses on application capabilities and technical evidence.
+This does not refresh the implementation snapshot or historical measurements
+above.
+
+- Checked 179 local Markdown links and anchors across 61 repository documents.
+- Verified 33 canonical document-path references and checked for obsolete paths.
+- Validated all five StoryGuard skills with the skill-creator validator using
+  the project Python environment; skill names and commands remain unchanged.
+- Compared the course-state YAML with its pre-move version: byte-for-byte
+  identical. Existing learning and promotion gates remain in place.
+- Ran `git diff --check` and checked the moved/new Markdown files for whitespace
+  and balanced fences.
+
+These are static documentation and instruction checks. Application tests,
+Docker smoke checks, model evaluations, and LangSmith runs were not performed
+for this documentation-only change.

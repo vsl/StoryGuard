@@ -152,7 +152,7 @@ usable, and future backend lessons can activate features endpoint by endpoint.
 - Runtime Markdown is deliberately unsupported; rich answer rendering should be
   added only with an approved sanitizer.
 
-## Interview talking point
+## Design rationale
 
 The frontend was built ahead of the AI pipeline without faking AI behavior. A
 same-origin proxy, typed contracts, evidence IDs, explicit unavailable states,

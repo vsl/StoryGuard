@@ -4,8 +4,9 @@
 
 ### Focused core scope — approved 2026-09-11
 
-`COURSE.md` defines graduation scope and `COURSE_PROGRESS.md` the current
-checkpoint. The required flow is upload → Story Bible → grounded Ask with
+`docs/maintainer/COURSE.md` defines graduation scope and
+`docs/maintainer/COURSE_PROGRESS.md` the current checkpoint.
+The required flow is upload → Story Bible → grounded Ask with
 citations → character-attribute continuity review. Reuse the current shell,
 components, APIs, and locked stack; this scope revision does not change UI code.
 

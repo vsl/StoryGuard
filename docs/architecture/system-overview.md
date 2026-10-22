@@ -4,7 +4,7 @@
 
 ## Purpose
 
-StoryGuard is a local AI engineering portfolio application for understanding manuscripts through searchable evidence and a structured Story Bible. The intended complete flow adds grounded questions and character-attribute continuity review. Today, ingestion, search, entity workflows, structured memory, and retrieval experiments are implemented.
+StoryGuard is a local manuscript analysis application using searchable evidence and a structured Story Bible. The intended complete flow adds grounded questions and character-attribute continuity review. Today, ingestion, search, entity workflows, structured memory, and retrieval experiments are implemented.
 
 The central design is to retain source text and evidence alongside model-produced records. PostgreSQL owns application state, MinIO retains uploaded files, and Elasticsearch holds a derived search index. Models propose interpretations; application code enforces scope, validates outputs, and records decisions.
 
@@ -54,11 +54,11 @@ flowchart TB
 | Entity extraction, canonical identities, resolution review and Stop/Resume | Implemented; automatic application of supported decisions enabled |
 | Facts, events, relationships, Timeline, source evidence | Implemented; explicit memory build after completed resolution |
 | Retrieval Experiment Lab and LangSmith instrumentation | Implemented; trace export disabled by default |
-| Grounded Story QA, bounded LangGraph planning, answer verification/abstention | Upcoming course work; retrieval alone is not a completed QA system |
+| Grounded Story QA, bounded LangGraph planning, answer verification/abstention | Planned; retrieval alone is not a completed QA system |
 | Continuity findings and general version comparison | UI surfaces exist; corresponding analysis capabilities remain future work |
 | SSE chat | Frontend reader exists; backend chat stream is not registered |
-| LoRA training | Requested isolated post-core experiment; not implemented or automatically promoted |
-| Cloud deployment | Outside current course; Docker Compose is local deployment |
+| Custom training / fine-tuning | No custom-trained model or fine-tuned adapter is deployed |
+| Cloud deployment | Outside current project scope; Docker Compose is local deployment |
 
 ## Worked example
 
@@ -85,7 +85,7 @@ Exact dependency pins live in the manifests; the table is a role map, not a comp
 
 ## Implementation links
 
-[Compose services](../../compose.yaml) · [registered API routes](../../backend/app/main.py) · [backend dependencies](../../backend/requirements.txt) · [frontend dependencies](../../frontend/package.json) · [model configuration](../../config/models.yaml) · [current course state](../../COURSE_PROGRESS.md)
+[Compose services](../../compose.yaml) · [registered API routes](../../backend/app/main.py) · [backend dependencies](../../backend/requirements.txt) · [frontend dependencies](../../frontend/package.json) · [model configuration](../../config/models.yaml)
 
 ## Choices, failures, and limitations
 

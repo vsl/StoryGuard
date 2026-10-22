@@ -35,8 +35,9 @@ The coding agent MUST NOT add unrelated infrastructure, frameworks, agents, data
 
 ## Focused portfolio scope — approved 2026-09-11
 
-`COURSE.md` defines the required core and lesson order; `COURSE_PROGRESS.md`
-defines the current checkpoint. Core delivery is upload → Story Bible → grounded
+`docs/maintainer/COURSE.md` defines the required core and lesson order;
+`docs/maintainer/COURSE_PROGRESS.md` defines the current checkpoint.
+Core delivery is upload → Story Bible → grounded
 Story QA with bounded planning/tools → character-attribute continuity review.
 Use the existing stack, retrieval, reranker, traces, Experiment Lab, gateway,
 and structured memory. Freeze expansion of completed capabilities; fix defects
@@ -4506,11 +4507,12 @@ INSUFFICIENT_EVIDENCE
 
 # 97. Implementation Order — No Time Estimates
 
-`COURSE.md` is the single source for lesson order and the mapping from the old
-syllabus. `COURSE_PROGRESS.md` determines what to resume. Preserve completed
-Lessons 0–5, including 5.3; the current lesson is 6.1.
+`docs/maintainer/COURSE.md` is the single source for lesson order and the mapping
+from the old syllabus. `docs/maintainer/COURSE_PROGRESS.md` determines completed
+lessons and what to resume; preserve its recorded state.
 
-The remaining core sequence is:
+The core sequence after foundational retrieval and story memory is listed below.
+Resume it from the progress file, skipping lessons already completed:
 
 1. 6.1 Model gateway and trade-offs.
 2. 7.1 Grounded Story QA.

@@ -5,6 +5,9 @@ description: Interactively review StoryGuard security for prompts, RAG, tool rou
 
 # StoryGuard Security Review
 
+Read root `AGENTS.md`. Follow its documentation maintenance rule when applying
+approved fixes; preserve the discussion and learning-artifact gates below.
+
 1. Explain affected trust boundary.
 2. Ask developer to predict one attack/failure.
 3. STOP.

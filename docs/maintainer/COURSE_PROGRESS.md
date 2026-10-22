@@ -96,7 +96,7 @@ learning_done = true
 
 Then:
 1. append the lesson to `completed_lessons`;
-2. set the next lesson from `COURSE.md` as `current_lesson`;
+2. set the next lesson from `docs/maintainer/COURSE.md` as `current_lesson`;
 3. reset all `current_lesson_state` booleans to false.
 
 ## Recovery rule
